@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Загрузка данных - IIKO Data Sync{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <h1>Загрузка данных из файла</h1>
+        <p class="text-muted">Загрузите JSON файл с данными продуктов для импорта в базу данных</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Загрузить JSON файл</h5>
+            </div>
+            <div class="card-body">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">Выберите файл</label>
+                        <input type="file" class="form-control" id="fileInput" accept=".json" required>
+                        <div class="form-text">Поддерживаются только файлы в формате JSON</div>
+                    </div>
+                    
+                    <div id="uploadResult" class="alert" style="display: none;"></div>
+                    
+                    <button type="submit" class="btn btn-primary" id="uploadBtn">
+                        <i class="bi bi-upload"></i> Загрузить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Инструкция</h5>
+            </div>
+            <div class="card-body">
+                <p>Формат JSON файла должен быть массивом объектов продуктов:</p>
+                <pre class="border p-2"><code>[
+  {
+    "id": "uuid",
+    "name": "Название",
+    "code": "код",
+    "deleted": false,
+    ...
+  }
+]</code></pre>
+                <p class="mt-3">Поддерживаемые поля:</p>
+                <ul>
+                    <li>id (UUID)</li>
+                    <li>name</li>
+                    <li>code</li>
+                    <li>num</li>
+                    <li>deleted</li>
+                    <li>description</li>
+                    <li>parent</li>
+                    <li>category</li>
+                    <li>modifiers</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const resultDiv = document.getElementById('uploadResult');
+    
+    if (!fileInput.files[0]) {
+        alert('Выберите файл');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    
+    // Отключаем кнопку
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Загрузка...';
+    resultDiv.style.display = 'none';
+    
+    fetch('/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        resultDiv.style.display = 'block';
+        
+        if (data.status === 'success') {
+            resultDiv.className = 'alert alert-success';
+            resultDiv.innerHTML = '<i class="bi bi-check-circle"></i> ' + data.message;
+            fileInput.value = '';
+        } else {
+            resultDiv.className = 'alert alert-danger';
+            resultDiv.innerHTML = '<i class="bi bi-x-circle"></i> Ошибка: ' + data.message;
+        }
+    })
+    .catch(error => {
+        resultDiv.style.display = 'block';
+        resultDiv.className = 'alert alert-danger';
+        resultDiv.innerHTML = '<i class="bi bi-x-circle"></i> Ошибка: ' + error;
+    })
+    .finally(() => {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="bi bi-upload"></i> Загрузить';
+    });
+});
+</script>
+{% endblock %}

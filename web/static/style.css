@@ -1,0 +1,85 @@
+/* Дополнительные стили для IIKO Data Sync */
+
+/* Анимация загрузки */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Карточки на главной */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+/* Таблица продуктов */
+.table-hover tbody tr:hover {
+    background-color: #f5f5f5;
+    cursor: pointer;
+}
+
+/* Статус бейджи */
+.badge {
+    font-weight: normal;
+    padding: 0.35em 0.65em;
+}
+
+/* Хлебные крошки */
+.breadcrumb {
+    background-color: #f8f9fa;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Пагинация */
+.pagination {
+    margin-top: 2rem;
+}
+
+/* Форма поиска */
+.search-form {
+    margin-bottom: 1.5rem;
+}
+
+/* Детали продукта */
+.product-detail table th {
+    background-color: #f8f9fa;
+}
+
+/* Анимация кнопки синхронизации */
+.btn-sync {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-sync.loading::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    to {
+        left: 100%;
+    }
+}
+
+/* Отзывчивость */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .card-body h2 {
+        font-size: 1.5rem;
+    }
+}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - IIKO Data Sync{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h1>IIKO Data Sync Dashboard</h1>
+        <hr>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-box"></i> Всего продуктов
+                </h5>
+                <h2 class="card-text">{{ total_products }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-check-circle"></i> Активные
+                </h5>
+                <h2 class="card-text">{{ active_products }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-trash"></i> Удаленные
+                </h5>
+                <h2 class="card-text">{{ deleted_products }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-clock"></i> Последняя синхронизация
+                </h5>
+                <p class="card-text">
+                    {% if last_sync %}
+                        {{ last_sync.sync_date.strftime('%d.%m.%Y %H:%M') }}
+                    {% else %}
+                        Никогда
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="syncData()">
+                        <i class="bi bi-arrow-repeat"></i> Запустить синхронизацию
+                    </button>
+                    <a href="/products" class="btn btn-secondary">
+                        <i class="bi bi-list"></i> Просмотр номенклатуры
+                    </a>
+                    <a href="/logs" class="btn btn-info">
+                        <i class="bi bi-clock-history"></i> История синхронизаций
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Информация о системе</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><strong>База данных:</strong> PostgreSQL</li>
+                    <li><strong>API:</strong> IIKO REST API v2</li>
+                    <li><strong>Статус:</strong> <span class="badge bg-success">Активен</span></li>
+                    {% if last_sync and last_sync.status == 'success' %}
+                        <li><strong>Последняя синхронизация:</strong> 
+                            <span class="badge bg-success">Успешно</span>
+                            ({{ last_sync.records_count }} записей)
+                        </li>
+                    {% elif last_sync and last_sync.status == 'error' %}
+                        <li><strong>Последняя синхронизация:</strong> 
+                            <span class="badge bg-danger">Ошибка</span>
+                            {{ last_sync.error_message }}
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

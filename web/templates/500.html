@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Ошибка сервера{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center">
+        <h1 class="display-1">500</h1>
+        <p class="fs-3"><span class="text-danger">Ошибка!</span> Что-то пошло не так.</p>
+        <p class="lead">
+            Произошла внутренняя ошибка сервера. Попробуйте позже.
+        </p>
+        <a href="/" class="btn btn-primary">Вернуться на главную</a>
+    </div>
+</div>
+{% endblock %}

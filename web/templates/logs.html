@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}История синхронизаций - IIKO Data Sync{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <h1>История синхронизаций</h1>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Тип</th>
+                <th>Статус</th>
+                <th>Количество записей</th>
+                <th>Детали</th>
+                <th>Сообщение об ошибке</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.sync_date.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                <td>{{ log.entity_type }}</td>
+                <td>
+                    {% if log.status == 'success' %}
+                        <span class="badge bg-success">Успешно</span>
+                    {% else %}
+                        <span class="badge bg-danger">Ошибка</span>
+                    {% endif %}
+                </td>
+                <td>{{ log.records_count or '-' }}</td>
+                <td>
+                    {% if log.details %}
+                        <small>
+                            Создано: {{ log.details.get('created', 0) }}<br>
+                            Обновлено: {{ log.details.get('updated', 0) }}<br>
+                            Ошибок: {{ log.details.get('errors', 0) }}
+                        </small>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.error_message %}
+                        <small class="text-danger">{{ log.error_message }}</small>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

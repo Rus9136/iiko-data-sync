@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - IIKO Data Sync{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Главная</a></li>
+                <li class="breadcrumb-item"><a href="/products">Номенклатура</a></li>
+                <li class="breadcrumb-item active">{{ product.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>{{ product.name }}</h3>
+                {% if product.deleted %}
+                    <span class="badge bg-danger">Удален</span>
+                {% else %}
+                    <span class="badge bg-success">Активен</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <tr>
+                        <th style="width: 30%;">ID</th>
+                        <td>{{ product.id }}</td>
+                    </tr>
+                    <tr>
+                        <th>Код</th>
+                        <td>{{ product.code or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Номер</th>
+                        <td>{{ product.num or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Описание</th>
+                        <td>{{ product.description or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Категория</th>
+                        <td>
+                            {% if category %}
+                                {{ category.name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Родительский элемент</th>
+                        <td>
+                            {% if parent %}
+                                <a href="/product/{{ parent.id }}">{{ parent.name }}</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Создан</th>
+                        <td>{{ product.created_at.strftime('%d.%m.%Y %H:%M:%S') if product.created_at else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Обновлен</th>
+                        <td>{{ product.updated_at.strftime('%d.%m.%Y %H:%M:%S') if product.updated_at else '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Синхронизирован</th>
+                        <td>{{ product.synced_at.strftime('%d.%m.%Y %H:%M:%S') if product.synced_at else '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if children %}
+        <div class="card">
+            <div class="card-header">
+                <h5>Дочерние элементы</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for child in children %}
+                    <li class="list-group-item">
+                        <a href="/product/{{ child.id }}">{{ child.name }}</a>
+                        {% if child.deleted %}
+                            <span class="badge bg-danger float-end">Удален</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/products" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Вернуться к списку
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
