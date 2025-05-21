@@ -19,14 +19,15 @@
                 <button type="submit" class="search-btn">Поиск</button>
             </form>
         </header>
-        
+
         <div class="table-container">
-            <table class="products-table">
+            <table class="products-table stores-table">
                 <thead>
                     <tr>
                         <th>Код</th>
                         <th>Название</th>
                         <th>Тип</th>
+                        <th>Родительский склад</th>
                         <th>Синхронизировано</th>
                     </tr>
                 </thead>
@@ -37,7 +38,8 @@
                         <td>
                             <a href="/store/{{ store.id }}">{{ store.name }}</a>
                         </td>
-                        <td>{{ store.type }}</td>
+                        <td>{{ store.type or '-' }}</td>
+                        <td>{{ store.parent_id[:8] if store.parent_id else '-' }}</td>
                         <td>{{ store.synced_at or '-' }}</td>
                     </tr>
                     {% endfor %}
