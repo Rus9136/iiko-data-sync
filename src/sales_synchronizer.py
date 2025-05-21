@@ -61,16 +61,23 @@ class SalesSynchronizer:
         
         logger.info("Sales synchronizer initialized")
     
-    def sync_sales(self, start_date=None, end_date=None):
+    def sync_sales(self, start_date=None, end_date=None, clear_existing=False):
         """
         Синхронизация продаж из API IIKO
         
         :param start_date: Начальная дата для получения продаж
         :param end_date: Конечная дата для получения продаж
+        :param clear_existing: Флаг, указывающий нужно ли удалить существующие данные за указанный период
         """
-        logger.info(f"Starting sales synchronization from {start_date} to {end_date}")
+        logger.info(f"Starting sales synchronization from {start_date} to {end_date} (clear_existing={clear_existing})")
         
         try:
+            # Если указан флаг clear_existing, удаляем существующие данные за указанный период
+            if clear_existing and start_date and end_date:
+                logger.info(f"Clearing existing sales data for period from {start_date} to {end_date}")
+                self._clear_existing_sales(start_date, end_date)
+                self.stats["deleted"] = self.stats.get("deleted", 0) + 1
+            
             # Получение данных о продажах из API
             sales_data = self.api_client.get_sales(start_date, end_date)
             
@@ -127,10 +134,16 @@ class SalesSynchronizer:
         order_num = int(sale_data.get("OrderNum", 0))
         fiscal_cheque_number = sale_data.get("FiscalChequeNumber")
         
-        # Проверяем существует ли уже такая продажа
+        # Получаем код товара и номер кассы для уникального ключа
+        dish_code = sale_data.get("DishCode")
+        cash_register_number = sale_data.get("CashRegisterName.Number")
+        
+        # Проверяем существует ли уже такая продажа с учетом товара и кассы
         existing_sale = self.session.query(Sale).filter(
             Sale.order_num == order_num,
-            Sale.fiscal_cheque_number == fiscal_cheque_number
+            Sale.fiscal_cheque_number == fiscal_cheque_number,
+            Sale.dish_code == dish_code,
+            Sale.cash_register_number == cash_register_number
         ).first()
         
         if existing_sale:
@@ -155,10 +168,16 @@ class SalesSynchronizer:
             store_name = sale_data.get("Store.Name")
             store_id = None
             
+            logger.debug(f"Creating sale - Searching for store with name: {store_name}")
+            logger.debug(f"Sale data keys: {sale_data.keys()}")
+            
             if store_name:
                 store = self.session.query(Store).filter(Store.name == store_name).first()
                 if store:
                     store_id = store.id
+                    logger.debug(f"Found store with id: {store_id}")
+                else:
+                    logger.warning(f"Store with name '{store_name}' not found in database")
             
             # Обработка полей с датами
             close_time = None
@@ -208,6 +227,7 @@ class SalesSynchronizer:
                 pay_types=sale_data.get("PayTypes"),
                 store_name=store_name,
                 store_id=store_id,
+                storned=(sale_data.get("Storned", "").upper() == "TRUE"),
                 synced_at=datetime.utcnow()
             )
             
@@ -232,10 +252,16 @@ class SalesSynchronizer:
             store_name = sale_data.get("Store.Name")
             store_id = None
             
+            logger.debug(f"Updating sale - Searching for store with name: {store_name}")
+            logger.debug(f"Sale data keys: {sale_data.keys()}")
+            
             if store_name:
                 store = self.session.query(Store).filter(Store.name == store_name).first()
                 if store:
                     store_id = store.id
+                    logger.debug(f"Found store with id: {store_id}")
+                else:
+                    logger.warning(f"Store with name '{store_name}' not found in database")
             
             # Обработка полей с датами
             close_time = None
@@ -281,6 +307,7 @@ class SalesSynchronizer:
             sale.pay_types = sale_data.get("PayTypes")
             sale.store_name = store_name
             sale.store_id = store_id
+            sale.storned = (sale_data.get("Storned", "").upper() == "TRUE")
             sale.synced_at = datetime.utcnow()
             
             logger.debug(f"Updated sale: {sale.id}")
@@ -291,6 +318,56 @@ class SalesSynchronizer:
             logger.error(traceback.format_exc())
             raise
     
+    def _clear_existing_sales(self, start_date, end_date):
+        """
+        Удаление существующих данных о продажах за указанный период
+        
+        :param start_date: Начальная дата в формате YYYY-MM-DD
+        :param end_date: Конечная дата в формате YYYY-MM-DD
+        """
+        from sqlalchemy import and_
+        from datetime import datetime
+        
+        try:
+            # Преобразуем строки в объекты datetime
+            try:
+                from_date = datetime.strptime(start_date, '%Y-%m-%d')
+                to_date = datetime.strptime(end_date, '%Y-%m-%d')
+                
+                # Добавляем один день к конечной дате, чтобы включить весь день
+                from datetime import timedelta
+                to_date = to_date + timedelta(days=1)
+            except ValueError as e:
+                logger.error(f"Invalid date format: {e}")
+                return False
+            
+            # Строим запрос на удаление продаж в указанном диапазоне дат
+            query = self.session.query(Sale).filter(
+                and_(
+                    Sale.close_time >= from_date,
+                    Sale.close_time < to_date
+                )
+            )
+            
+            # Получаем количество записей для удаления
+            count_to_delete = query.count()
+            logger.info(f"Found {count_to_delete} sales to delete for period from {start_date} to {end_date}")
+            
+            # Выполняем удаление
+            if count_to_delete > 0:
+                query.delete(synchronize_session=False)
+                self.session.commit()
+                logger.info(f"Deleted {count_to_delete} sales from database")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            self.session.rollback()
+            logger.error(f"Error clearing existing sales: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise
+
     def _log_sync_result(self, status, records_count, error_message=None):
         """
         Запись результата синхронизации в лог

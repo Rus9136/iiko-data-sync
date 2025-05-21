@@ -178,7 +178,7 @@ def sync():
             clear_existing = data.get('clear_existing', False)
             
             sales_synchronizer = SalesSynchronizer()
-            sales_synchronizer.sync_sales(start_date, end_date)
+            sales_synchronizer.sync_sales(start_date, end_date, clear_existing)
             message = 'Синхронизация продаж завершена успешно'
             
             return jsonify({
@@ -351,11 +351,29 @@ def sales():
             query = query.filter(or_(
                 Sale.dish_name.ilike(f'%{search}%'),
                 Sale.fiscal_cheque_number.ilike(f'%{search}%'),
-                Sale.dish_code.ilike(f'%{search}%')
+                Sale.dish_code.ilike(f'%{search}%'),
+                Sale.order_num.cast(String).ilike(f'%{search}%')
             ))
         
         if store_id:
             query = query.filter(Sale.store_id == store_id)
+            
+        # Добавляем фильтр по типу чека
+        sale_type = request.args.get('sale_type', 'all')
+        if sale_type == 'normal':
+            # Обычные продажи (не отменены, не возвраты)
+            query = query.filter(
+                Sale.storned == False, 
+                or_(Sale.dish_return_sum == 0, Sale.dish_return_sum == None)
+            )
+        elif sale_type == 'returns':
+            # Возвраты
+            query = query.filter(
+                or_(Sale.dish_return_sum > 0, and_(Sale.dish_return_sum != None, Sale.dish_return_sum > 0))
+            )
+        elif sale_type == 'canceled':
+            # Отмененные чеки
+            query = query.filter(Sale.storned == True)
         
         # Статистика для текущего запроса
         total_count = query.count()
@@ -389,6 +407,7 @@ def sales():
                              date_from=date_from,
                              date_to=date_to,
                              store_id=store_id,
+                             sale_type=sale_type,
                              stores=stores)
     finally:
         session.close()
@@ -439,7 +458,7 @@ def sales_sync():
             
             # Запуск синхронизатора продаж
             sales_synchronizer = SalesSynchronizer()
-            result = sales_synchronizer.sync_sales(start_date, end_date)
+            result = sales_synchronizer.sync_sales(start_date, end_date, clear_existing)
             
             return jsonify({
                 'status': 'success', 
@@ -458,8 +477,9 @@ def sales_sync():
     session = Session()
     try:
         # Устанавливаем диапазон дат по умолчанию (последняя неделя)
-        default_end_date = datetime.now().strftime('%Y-%m-%d')
-        default_start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        # Используем формат для datetime-local
+        default_end_date = datetime.now().strftime('%Y-%m-%dT%H:%M')
+        default_start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M')
         
         # Статистика для страницы
         total_sales = session.query(func.count(Sale.id)).scalar() or 0

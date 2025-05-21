@@ -42,7 +42,11 @@
                 <div class="detail-row">
                     <span class="detail-label">Статус:</span>
                     <span class="detail-value">
-                        {% if sale.deleted_with_writeoff == 'NOT_DELETED' %}
+                        {% if sale.storned == True %}
+                            <span class="badge error">Отменен</span>
+                        {% elif sale.deleted_with_writeoff == 'NOT_DELETED' and sale.dish_return_sum is not none and sale.dish_return_sum > 0 %}
+                            <span class="badge warning">Возврат</span>
+                        {% elif sale.deleted_with_writeoff == 'NOT_DELETED' %}
                             <span class="badge success">Активный</span>
                         {% elif sale.deleted_with_writeoff == 'DELETED_WITH_WRITEOFF' %}
                             <span class="badge warning">Удален со списанием</span>
@@ -81,7 +85,7 @@
         </div>
         
         <div class="detail-section">
-            <h2>Данные товара</h2>
+            <h2>Данные позиции чека</h2>
             <div class="detail-grid">
                 <div class="detail-row">
                     <span class="detail-label">Наименование:</span>
@@ -134,6 +138,7 @@
                             <th>Количество</th>
                             <th>Ед. изм.</th>
                             <th>Скидка</th>
+                            <th>Возврат</th>
                             <th>Сумма</th>
                         </tr>
                     </thead>
@@ -147,6 +152,7 @@
                             <td>{{ related.dish_amount }}</td>
                             <td>{{ related.dish_measure_unit or '-' }}</td>
                             <td>{{ '{:,.3f}'.format(related.dish_discount_sum).replace(',', ' ') if related.dish_discount_sum is not none else '0.000' }} ₸</td>
+                            <td>{{ '{:,.3f}'.format(related.dish_return_sum).replace(',', ' ') if related.dish_return_sum is not none else '0.000' }} ₸</td>
                             <td>{{ '{:,.3f}'.format(related.dish_sum).replace(',', ' ') if related.dish_sum is not none else '0.000' }} ₸</td>
                         </tr>
                         {% endfor %}
@@ -155,6 +161,7 @@
                         <tr>
                             <td colspan="4" class="text-right"><strong>Итого:</strong></td>
                             <td>{{ '{:,.3f}'.format(total_discount).replace(',', ' ') }} ₸</td>
+                            <td>{% set total_return = 0 %}{% for related in related_sales %}{% if related.dish_return_sum is not none %}{% set total_return = total_return + related.dish_return_sum %}{% endif %}{% endfor %}{{ '{:,.3f}'.format(total_return).replace(',', ' ') }} ₸</td>
                             <td>{{ '{:,.3f}'.format(total_sum).replace(',', ' ') }} ₸</td>
                         </tr>
                     </tfoot>

@@ -187,6 +187,7 @@ class Sale(Base):
     pay_types = Column(String(255), nullable=True)
     store_name = Column(String(255), nullable=True)
     store_id = Column(UUID(as_uuid=True), ForeignKey('stores.id'), nullable=True)
+    storned = Column(Boolean, default=False, nullable=True)  # Флаг отмены чека
     
     # Временные метки
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -197,7 +198,7 @@ class Sale(Base):
     store = relationship("Store")
     
     __table_args__ = (
-        UniqueConstraint('order_num', 'fiscal_cheque_number', name='unique_order_fiscal_number'),
+        UniqueConstraint('order_num', 'fiscal_cheque_number', 'dish_code', 'cash_register_number', name='unique_sale_item'),
     )
 
 class SyncLog(Base):

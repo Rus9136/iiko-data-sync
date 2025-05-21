@@ -214,7 +214,8 @@ class IikoApiClient:
                 "Department.Id",
                 "CloseTime",
                 "PayTypes",
-                "OrderIncrease.Type"
+                "OrderIncrease.Type",
+                "Storned"  # Добавляем флаг отмены чека
             ],
             "aggregateFields": [
                 "DishAmountInt",
@@ -238,10 +239,12 @@ class IikoApiClient:
                 "DeletedWithWriteoff": {
                     "filterType": "IncludeValues",
                     "values": [
-                        "NOT_DELETED", 
-                        "DELETED_WITH_WRITEOFF", 
-                        "DELETED_WITHOUT_WRITEOFF"
+                        "NOT_DELETED"  # Оставляем только неудаленные продажи
                     ]
+                },
+                "Storned": {
+                    "filterType": "IncludeValues",
+                    "values": ["FALSE"]  # Исключаем отмененные чеки
                 }
             }
         }
@@ -261,19 +264,73 @@ class IikoApiClient:
             
         # Преобразуем данные из OLAP в формат, который ожидает синхронизатор
         formatted_sales = []
+        skipped_storned = 0
+        skipped_returns = 0
+        
         if isinstance(sales_data, list) and sales_data:
+            # Выводим первую строку для отладки
+            if sales_data:
+                logger.info(f"Sample raw sales data row keys: {list(sales_data[0].keys())}")
+                logger.info(f"Sample raw sales data first row: {sales_data[0]}")
+                
             for row in sales_data:
+                # Проверка флагов для отмены чека
+                dish_return_sum = None
+                is_storned = False
+                
+                # Проверим на отмененный чек и возврат
+                for key, value in row.items():
+                    if key.endswith('DishReturnSum'):
+                        try:
+                            dish_return_sum = int(value) if value else 0
+                        except (ValueError, TypeError):
+                            dish_return_sum = 0
+                    elif key.endswith('Storned') and value and value.upper() == 'TRUE':
+                        is_storned = True
+                
+                # Пропускаем отмененные чеки и возвраты
+                if is_storned:
+                    logger.debug(f"Skipping storned check with flag Storned=TRUE")
+                    skipped_storned += 1
+                    continue
+                
+                if dish_return_sum and dish_return_sum > 0:
+                    logger.debug(f"Skipping return item with DishReturnSum = {dish_return_sum}")
+                    skipped_returns += 1
+                    continue
+                
                 sale_item = {}
+                store_name = None
+                
+                # Сначала найдем имя склада, проверяя все ключи
+                for key, value in row.items():
+                    if key.endswith('Store.Name'):
+                        store_name = value
+                        logger.info(f"Found Store.Name in key: {key} with value: {value}")
+                        break
+                
+                # Теперь обработаем все поля
                 for key, value in row.items():
                     # Удаляем префиксы с номерами колонок из OLAP результата
                     clean_key = key.split('.')[-1]  # Берем только часть после последней точки
-                    # Сохраняем полные ключи для специальных полей
-                    if key in ["CashRegisterName.Number", "CashRegisterName.CashRegisterSerialNumber", 
-                              "Department.Id", "OrderIncrease.Type"]:
-                        sale_item[key] = value
+                    
+                    # Особые случаи
+                    if key.endswith('CashRegisterName.Number'):
+                        sale_item["CashRegisterName.Number"] = value
+                    elif key.endswith('CashRegisterName.CashRegisterSerialNumber'):
+                        sale_item["CashRegisterName.CashRegisterSerialNumber"] = value
+                    elif key.endswith('Department.Id'):
+                        sale_item["Department.Id"] = value
+                    elif key.endswith('OrderIncrease.Type'):
+                        sale_item["OrderIncrease.Type"] = value
                     else:
                         sale_item[clean_key] = value
+                
+                # Добавляем имя склада, если нашли
+                if store_name:
+                    sale_item["Store.Name"] = store_name
                 formatted_sales.append(sale_item)
         
         logger.info(f"Загружено {len(formatted_sales)} записей о продажах")
+        logger.info(f"Статистика фильтрации: пропущено отмененных чеков: {skipped_storned}, пропущено возвратов: {skipped_returns}")
         return formatted_sales
