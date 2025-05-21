@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Продажа №{{ sale.order_num }} - IIKO Data Sync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="detail-header">
+            <div>
+                <h1>Продажа №{{ sale.order_num }}</h1>
+                <button onclick="window.location.href='/sales'" class="back-btn">← К списку продаж</button>
+            </div>
+        </header>
+        
+        <div class="detail-section">
+            <h2>Информация о продаже</h2>
+            <div class="detail-grid">
+                <div class="detail-row">
+                    <span class="detail-label">ID транзакции:</span>
+                    <span class="detail-value">{{ sale.id }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Номер заказа:</span>
+                    <span class="detail-value">{{ sale.order_num }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Номер чека:</span>
+                    <span class="detail-value">{{ sale.fiscal_cheque_number or 'Не указан' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Дата/время закрытия:</span>
+                    <span class="detail-value">{{ sale.close_time.strftime('%d.%m.%Y %H:%M:%S') if sale.close_time else 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Дата/время предчека:</span>
+                    <span class="detail-value">{{ sale.precheque_time.strftime('%d.%m.%Y %H:%M:%S') if sale.precheque_time else 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Статус:</span>
+                    <span class="detail-value">
+                        {% if sale.deleted_with_writeoff == 'NOT_DELETED' %}
+                            <span class="badge success">Активный</span>
+                        {% elif sale.deleted_with_writeoff == 'DELETED_WITH_WRITEOFF' %}
+                            <span class="badge warning">Удален со списанием</span>
+                        {% elif sale.deleted_with_writeoff == 'DELETED_WITHOUT_WRITEOFF' %}
+                            <span class="badge error">Удален без списания</span>
+                        {% else %}
+                            <span class="badge secondary">{{ sale.deleted_with_writeoff }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Тип оплаты:</span>
+                    <span class="detail-value">{{ sale.pay_types or 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Подразделение:</span>
+                    <span class="detail-value">{{ sale.department or 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Склад:</span>
+                    <span class="detail-value">{{ sale.store_name or 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Касса:</span>
+                    <span class="detail-value">{{ sale.cash_register_name or 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Серийный номер кассы:</span>
+                    <span class="detail-value">{{ sale.cash_register_serial_number or 'Не указано' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Номер кассы:</span>
+                    <span class="detail-value">{{ sale.cash_register_number or 'Не указано' }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="detail-section">
+            <h2>Данные товара</h2>
+            <div class="detail-grid">
+                <div class="detail-row">
+                    <span class="detail-label">Наименование:</span>
+                    <span class="detail-value">{{ sale.dish_name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Код товара:</span>
+                    <span class="detail-value">{{ sale.dish_code or 'Не указан' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Единица измерения:</span>
+                    <span class="detail-value">{{ sale.dish_measure_unit or 'Не указана' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Количество:</span>
+                    <span class="detail-value">{{ sale.dish_amount or '0' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Сумма скидки:</span>
+                    <span class="detail-value">{{ '{:,}'.format(sale.dish_discount_sum|int).replace(',', ' ') if sale.dish_discount_sum else '0' }} ₸</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Сумма возврата:</span>
+                    <span class="detail-value">{{ '{:,}'.format(sale.dish_return_sum|int).replace(',', ' ') if sale.dish_return_sum else '0' }} ₸</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Общая сумма:</span>
+                    <span class="detail-value">{{ '{:,}'.format(sale.dish_sum|int).replace(',', ' ') if sale.dish_sum else '0' }} ₸</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Наценка:</span>
+                    <span class="detail-value">{{ '{:,}'.format(sale.increase_sum|int).replace(',', ' ') if sale.increase_sum else '0' }} ₸</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Тип наценки:</span>
+                    <span class="detail-value">{{ sale.order_increase_type or 'Не указано' }}</span>
+                </div>
+            </div>
+        </div>
+        
+        {% if related_sales %}
+        <div class="detail-section">
+            <h2>Другие товары в заказе</h2>
+            <div class="table-container">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>Код</th>
+                            <th>Наименование</th>
+                            <th>Количество</th>
+                            <th>Ед. изм.</th>
+                            <th>Скидка</th>
+                            <th>Сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for related in related_sales %}
+                        <tr {% if related.id == sale.id %}class="highlight-row"{% endif %}>
+                            <td>{{ related.dish_code or '-' }}</td>
+                            <td>
+                                <a href="/sale/{{ related.id }}">{{ related.dish_name }}</a>
+                            </td>
+                            <td>{{ related.dish_amount }}</td>
+                            <td>{{ related.dish_measure_unit or '-' }}</td>
+                            <td>{{ '{:,}'.format(related.dish_discount_sum|int).replace(',', ' ') if related.dish_discount_sum else '0' }} ₸</td>
+                            <td>{{ '{:,}'.format(related.dish_sum|int).replace(',', ' ') if related.dish_sum else '0' }} ₸</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-right"><strong>Итого:</strong></td>
+                            <td>{{ '{:,}'.format(total_discount|int).replace(',', ' ') }} ₸</td>
+                            <td>{{ '{:,}'.format(total_sum|int).replace(',', ' ') }} ₸</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="detail-section">
+            <h2>Служебная информация</h2>
+            <div class="detail-grid">
+                <div class="detail-row">
+                    <span class="detail-label">Дата создания записи:</span>
+                    <span class="detail-value">{{ sale.created_at.strftime('%d.%m.%Y %H:%M:%S') if sale.created_at else 'Не указана' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Дата обновления записи:</span>
+                    <span class="detail-value">{{ sale.updated_at.strftime('%d.%m.%Y %H:%M:%S') if sale.updated_at else 'Не указана' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Дата синхронизации:</span>
+                    <span class="detail-value">{{ sale.synced_at.strftime('%d.%m.%Y %H:%M:%S') if sale.synced_at else 'Не указана' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

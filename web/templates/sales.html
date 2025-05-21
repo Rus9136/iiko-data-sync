@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Продажи - IIKO Data Sync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="products-header">
+            <div>
+                <h1>Продажи</h1>
+                <button onclick="window.location.href='/'" class="back-btn">← Назад</button>
+            </div>
+            <div class="filters-container">
+                <form action="/sales" method="get" class="filters-form">
+                    <div class="filter-group">
+                        <label for="date_from">С:</label>
+                        <input type="date" name="date_from" id="date_from" value="{{ date_from }}" class="date-input">
+                    </div>
+                    <div class="filter-group">
+                        <label for="date_to">По:</label>
+                        <input type="date" name="date_to" id="date_to" value="{{ date_to }}" class="date-input">
+                    </div>
+                    <div class="filter-group">
+                        <label for="store">Склад:</label>
+                        <select name="store_id" id="store" class="select-input">
+                            <option value="">Все склады</option>
+                            {% for store in stores %}
+                            <option value="{{ store.id }}" {% if store.id|string == store_id|string %}selected{% endif %}>{{ store.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="search-btn">Применить</button>
+                </form>
+                
+                <form action="/sales" method="get" class="search-bar">
+                    <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию или номеру чека" class="search-input">
+                    <button type="submit" class="search-btn">Поиск</button>
+                </form>
+            </div>
+        </header>
+
+        <div class="sales-summary">
+            <div class="summary-card">
+                <div class="summary-value">{{ total_count }}</div>
+                <div class="summary-label">Всего продаж</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ '{:,}'.format(total_sum|int).replace(',', ' ') }} ₸</div>
+                <div class="summary-label">Сумма продаж</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ '{:,}'.format(discount_sum|int).replace(',', ' ') }} ₸</div>
+                <div class="summary-label">Сумма скидок</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ unique_orders }}</div>
+                <div class="summary-label">Уникальных заказов</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="products-table sales-table">
+                <thead>
+                    <tr>
+                        <th>Дата/Время</th>
+                        <th>№ заказа</th>
+                        <th>№ чека</th>
+                        <th>Наименование</th>
+                        <th>Кол-во</th>
+                        <th>Цена</th>
+                        <th>Скидка</th>
+                        <th>Сумма</th>
+                        <th>Склад</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>{{ sale.close_time.strftime('%d.%m.%Y %H:%M') if sale.close_time else '' }}</td>
+                        <td>
+                            <a href="/sale/{{ sale.id }}">{{ sale.order_num }}</a>
+                        </td>
+                        <td>{{ sale.fiscal_cheque_number or '-' }}</td>
+                        <td>{{ sale.dish_name }}</td>
+                        <td>{{ sale.dish_amount }}</td>
+                        <td>{{ '{:,}'.format((sale.dish_sum / sale.dish_amount)|int).replace(',', ' ') if sale.dish_amount else 0 }} ₸</td>
+                        <td>{{ '{:,}'.format(sale.dish_discount_sum|int).replace(',', ' ') if sale.dish_discount_sum else 0 }} ₸</td>
+                        <td>{{ '{:,}'.format(sale.dish_sum|int).replace(',', ' ') }} ₸</td>
+                        <td>{{ sale.store_name or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Пагинация -->
+        {% if total_pages > 1 %}
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="?page={{ page - 1 }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&search={{ search }}">← Назад</a>
+            {% endif %}
+            
+            {% set start_page = (1 if page - 2 < 1 else page - 2) %}
+            {% set end_page = (total_pages if page + 2 > total_pages else page + 2) %}
+            
+            {% if start_page > 1 %}
+                <a href="?page=1&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&search={{ search }}">1</a>
+                {% if start_page > 2 %}
+                    <span>...</span>
+                {% endif %}
+            {% endif %}
+            
+            {% for p in range(start_page, end_page + 1) %}
+                {% if p == page %}
+                    <span class="active">{{ p }}</span>
+                {% else %}
+                    <a href="?page={{ p }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&search={{ search }}">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+            
+            {% if end_page < total_pages %}
+                {% if end_page < total_pages - 1 %}
+                    <span>...</span>
+                {% endif %}
+                <a href="?page={{ total_pages }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&search={{ search }}">{{ total_pages }}</a>
+            {% endif %}
+            
+            {% if page < total_pages %}
+                <a href="?page={{ page + 1 }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&search={{ search }}">Вперед →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

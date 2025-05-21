@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Загрузка продаж - IIKO Data Sync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="products-header">
+            <div>
+                <h1>Загрузка продаж из IIKO</h1>
+                <button onclick="window.location.href='/'" class="back-btn">← Назад</button>
+            </div>
+        </header>
+
+        <div class="sync-form-section">
+            <div class="form-card">
+                <h2>Параметры синхронизации</h2>
+                <p class="form-description">Выберите диапазон дат для загрузки данных о продажах из IIKO API</p>
+                
+                <form id="syncForm" class="sync-form">
+                    <div class="form-group">
+                        <label for="start_date">Дата начала:</label>
+                        <input type="date" id="start_date" name="start_date" class="form-input" required value="{{ default_start_date }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="end_date">Дата окончания:</label>
+                        <input type="date" id="end_date" name="end_date" class="form-input" required value="{{ default_end_date }}">
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="clear_existing" name="clear_existing">
+                            Очистить существующие данные за выбранный период перед загрузкой
+                        </label>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="action-btn primary" id="submitBtn">
+                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Начать загрузку
+                        </button>
+                        <button type="button" class="action-btn secondary" onclick="window.location.href = '/sales'">
+                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            Перейти к продажам
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="sync-status-card" id="syncStatusCard" style="display: none;">
+                <h2>Статус загрузки</h2>
+                <div class="sync-progress">
+                    <div class="progress-bar">
+                        <div class="progress-bar-inner" id="progressBar"></div>
+                    </div>
+                    <div class="progress-status" id="progressStatus">Подготовка...</div>
+                </div>
+                
+                <div class="sync-details">
+                    <div class="sync-detail-row">
+                        <span class="sync-detail-label">Создано записей:</span>
+                        <span class="sync-detail-value" id="createdCount">0</span>
+                    </div>
+                    <div class="sync-detail-row">
+                        <span class="sync-detail-label">Обновлено записей:</span>
+                        <span class="sync-detail-value" id="updatedCount">0</span>
+                    </div>
+                    <div class="sync-detail-row">
+                        <span class="sync-detail-label">Пропущено записей:</span>
+                        <span class="sync-detail-value" id="skippedCount">0</span>
+                    </div>
+                    <div class="sync-detail-row">
+                        <span class="sync-detail-label">Ошибок:</span>
+                        <span class="sync-detail-value" id="errorCount">0</span>
+                    </div>
+                    <div class="sync-detail-row">
+                        <span class="sync-detail-label">Время начала:</span>
+                        <span class="sync-detail-value" id="startTime">-</span>
+                    </div>
+                    <div class="sync-detail-row">
+                        <span class="sync-detail-label">Время окончания:</span>
+                        <span class="sync-detail-value" id="endTime">-</span>
+                    </div>
+                </div>
+                
+                <div class="sync-actions">
+                    <button type="button" class="action-btn primary" id="viewResultBtn" style="display: none;" onclick="window.location.href = '/sales'">
+                        Просмотреть результаты
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats-section">
+            <h2>Текущая статистика</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_sales }}</div>
+                    <div class="stat-label">Всего продаж в базе</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ unique_orders }}</div>
+                    <div class="stat-label">Уникальных заказов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ last_sale_date or 'Нет данных' }}</div>
+                    <div class="stat-label">Последняя продажа</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">
+                        {% if last_sync %}
+                            {{ last_sync.sync_date.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                            Нет данных
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">Последняя синхронизация</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast уведомления -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Функция для показа уведомлений
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Синхронизация продаж
+        document.getElementById('syncForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const clearExisting = document.getElementById('clear_existing').checked;
+            
+            if (!startDate || !endDate) {
+                showToast('Необходимо указать даты начала и окончания', 'error');
+                return;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                showToast('Дата начала не может быть позже даты окончания', 'error');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('loading');
+            
+            // Показываем карточку статуса
+            document.getElementById('syncStatusCard').style.display = 'block';
+            document.getElementById('progressStatus').textContent = 'Запуск синхронизации...';
+            document.getElementById('progressBar').style.width = '5%';
+            document.getElementById('startTime').textContent = new Date().toLocaleTimeString();
+            
+            showToast('Запуск синхронизации продаж...', 'info');
+            
+            try {
+                const response = await fetch('/sales/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        start_date: startDate,
+                        end_date: endDate,
+                        clear_existing: clearExisting
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Обновляем прогресс и статистику
+                    document.getElementById('progressBar').style.width = '100%';
+                    document.getElementById('progressStatus').textContent = 'Синхронизация завершена';
+                    document.getElementById('createdCount').textContent = data.stats.created;
+                    document.getElementById('updatedCount').textContent = data.stats.updated;
+                    document.getElementById('skippedCount').textContent = data.stats.skipped;
+                    document.getElementById('errorCount').textContent = data.stats.errors;
+                    document.getElementById('endTime').textContent = new Date().toLocaleTimeString();
+                    document.getElementById('viewResultBtn').style.display = 'block';
+                    
+                    showToast(data.message || 'Синхронизация продаж завершена', 'success');
+                } else {
+                    document.getElementById('progressBar').style.width = '100%';
+                    document.getElementById('progressStatus').textContent = 'Ошибка синхронизации';
+                    document.getElementById('errorCount').textContent = '1';
+                    document.getElementById('endTime').textContent = new Date().toLocaleTimeString();
+                    
+                    showToast(data.error || 'Ошибка синхронизации', 'error');
+                }
+            } catch (error) {
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressStatus').textContent = 'Ошибка сети';
+                document.getElementById('errorCount').textContent = '1';
+                document.getElementById('endTime').textContent = new Date().toLocaleTimeString();
+                
+                showToast('Ошибка сети: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            }
+        });
+    </script>
+</body>
+</html>

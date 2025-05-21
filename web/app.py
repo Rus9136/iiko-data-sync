@@ -4,14 +4,15 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_cors import CORS
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, desc, or_, and_
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
-from src.models import Base, Product, Category, SyncLog, Store
+from src.models import Base, Product, Category, SyncLog, Store, Sale
 from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
+from src.sales_synchronizer import SalesSynchronizer
 from config.config import DATABASE_CONFIG
 
 app = Flask(__name__)
@@ -37,20 +38,24 @@ def index():
         # Получаем статистику по складам
         total_stores = session.query(func.count(Store.id)).scalar() or 0
         
-        # Последняя синхронизация (берем самую позднюю между продуктами и складами)
+        # Получаем статистику по продажам
+        total_sales = session.query(func.count(Sale.id)).scalar() or 0
+        
+        # Последняя синхронизация (берем самую позднюю)
         last_sync_products = session.query(SyncLog).filter(SyncLog.entity_type == 'products').order_by(SyncLog.sync_date.desc()).first()
         last_sync_stores = session.query(SyncLog).filter(SyncLog.entity_type == 'stores').order_by(SyncLog.sync_date.desc()).first()
+        last_sync_sales = session.query(SyncLog).filter(SyncLog.entity_type == 'sales').order_by(SyncLog.sync_date.desc()).first()
         
-        if last_sync_products and last_sync_stores:
-            last_sync = last_sync_products if last_sync_products.sync_date > last_sync_stores.sync_date else last_sync_stores
-        else:
-            last_sync = last_sync_products or last_sync_stores
+        # Находим самую позднюю синхронизацию среди всех типов
+        all_syncs = [s for s in [last_sync_products, last_sync_stores, last_sync_sales] if s is not None]
+        last_sync = max(all_syncs, key=lambda x: x.sync_date) if all_syncs else None
         
         return render_template('index.html', 
                              total_products=total_products,
                              active_products=active_products,
                              deleted_products=deleted_products,
                              total_stores=total_stores,
+                             total_sales=total_sales,
                              last_sync=last_sync)
     finally:
         session.close()
@@ -166,6 +171,21 @@ def sync():
             store_synchronizer = StoreSynchronizer()
             store_synchronizer.sync_stores()
             message = 'Синхронизация складов завершена успешно'
+        elif entity == 'sales':
+            # Получаем параметры для синхронизации продаж
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            clear_existing = data.get('clear_existing', False)
+            
+            sales_synchronizer = SalesSynchronizer()
+            sales_synchronizer.sync_sales(start_date, end_date)
+            message = 'Синхронизация продаж завершена успешно'
+            
+            return jsonify({
+                'status': 'success', 
+                'message': message,
+                'stats': sales_synchronizer.stats
+            })
         else:
             return jsonify({'status': 'error', 'message': f'Неизвестный тип сущности: {entity}'}), 400
             
@@ -298,6 +318,170 @@ def not_found(error):
 def internal_error(error):
     return render_template('500.html'), 500
 
+@app.route('/sales')
+def sales():
+    """Список продаж"""
+    session = Session()
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        # Фильтры
+        search = request.args.get('search', '')
+        date_from = request.args.get('date_from', (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d'))
+        date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+        store_id = request.args.get('store_id', '')
+        
+        # Преобразуем строки даты в объекты datetime
+        from_date = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+        to_date = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+        
+        # Если указана to_date, добавляем 1 день для включения всего дня
+        if to_date:
+            to_date = to_date + timedelta(days=1)
+        
+        # Базовый запрос
+        query = session.query(Sale)
+        
+        # Применяем фильтры
+        if from_date and to_date:
+            query = query.filter(Sale.close_time >= from_date, Sale.close_time < to_date)
+        
+        if search:
+            query = query.filter(or_(
+                Sale.dish_name.ilike(f'%{search}%'),
+                Sale.fiscal_cheque_number.ilike(f'%{search}%'),
+                Sale.dish_code.ilike(f'%{search}%')
+            ))
+        
+        if store_id:
+            query = query.filter(Sale.store_id == store_id)
+        
+        # Статистика для текущего запроса
+        total_count = query.count()
+        
+        # Использование func.sum для подсчета сумм
+        total_sum_query = session.query(func.sum(Sale.dish_sum)).filter(query.whereclause)
+        discount_sum_query = session.query(func.sum(Sale.dish_discount_sum)).filter(query.whereclause)
+        
+        total_sum = total_sum_query.scalar() or 0
+        discount_sum = discount_sum_query.scalar() or 0
+        
+        # Получение уникальных заказов
+        unique_orders_query = session.query(func.count(func.distinct(Sale.order_num))).filter(query.whereclause)
+        unique_orders = unique_orders_query.scalar() or 0
+        
+        # Пагинация
+        sales = query.order_by(Sale.close_time.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Получение списка складов для фильтра
+        stores = session.query(Store).order_by(Store.name).all()
+        
+        return render_template('sales.html', 
+                             sales=sales,
+                             page=page,
+                             total_pages=(total_count + per_page - 1) // per_page,
+                             total_count=total_count,
+                             total_sum=total_sum,
+                             discount_sum=discount_sum,
+                             unique_orders=unique_orders,
+                             search=search,
+                             date_from=date_from,
+                             date_to=date_to,
+                             store_id=store_id,
+                             stores=stores)
+    finally:
+        session.close()
+
+@app.route('/sale/<sale_id>')
+def sale_detail(sale_id):
+    """Детали продажи"""
+    session = Session()
+    try:
+        sale = session.query(Sale).filter_by(id=sale_id).first()
+        if not sale:
+            return "Продажа не найдена", 404
+        
+        # Получаем другие товары в том же заказе
+        related_sales = session.query(Sale).filter(
+            Sale.order_num == sale.order_num,
+            Sale.fiscal_cheque_number == sale.fiscal_cheque_number
+        ).all()
+        
+        # Подсчитываем общую сумму для чека
+        total_sum = sum(related.dish_sum or 0 for related in related_sales)
+        total_discount = sum(related.dish_discount_sum or 0 for related in related_sales)
+        
+        return render_template('sale_detail.html', 
+                             sale=sale,
+                             related_sales=related_sales,
+                             total_sum=total_sum,
+                             total_discount=total_discount)
+    finally:
+        session.close()
+
+@app.route('/sales/sync', methods=['GET', 'POST'])
+def sales_sync():
+    """Страница ручной синхронизации продаж"""
+    if request.method == 'POST':
+        try:
+            # Получаем параметры синхронизации
+            data = request.json
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            clear_existing = data.get('clear_existing', False)
+            
+            if not start_date or not end_date:
+                return jsonify({
+                    'status': 'error', 
+                    'error': 'Необходимо указать даты начала и окончания'
+                }), 400
+            
+            # Запуск синхронизатора продаж
+            sales_synchronizer = SalesSynchronizer()
+            result = sales_synchronizer.sync_sales(start_date, end_date)
+            
+            return jsonify({
+                'status': 'success', 
+                'message': 'Синхронизация продаж завершена успешно',
+                'stats': sales_synchronizer.stats
+            })
+            
+        except Exception as e:
+            import traceback
+            error_message = str(e)
+            app.logger.error(f"Sales sync error: {error_message}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({'status': 'error', 'error': error_message}), 500
+    
+    # GET-запрос: отображение формы синхронизации
+    session = Session()
+    try:
+        # Устанавливаем диапазон дат по умолчанию (последняя неделя)
+        default_end_date = datetime.now().strftime('%Y-%m-%d')
+        default_start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        
+        # Статистика для страницы
+        total_sales = session.query(func.count(Sale.id)).scalar() or 0
+        unique_orders = session.query(func.count(func.distinct(Sale.order_num))).scalar() or 0
+        
+        # Последняя продажа
+        last_sale = session.query(Sale).order_by(Sale.close_time.desc()).first()
+        last_sale_date = last_sale.close_time.strftime('%d.%m.%Y %H:%M') if last_sale and last_sale.close_time else None
+        
+        # Последняя синхронизация продаж
+        last_sync = session.query(SyncLog).filter(SyncLog.entity_type == 'sales').order_by(SyncLog.sync_date.desc()).first()
+        
+        return render_template('sales_sync.html',
+                             default_start_date=default_start_date,
+                             default_end_date=default_end_date,
+                             total_sales=total_sales,
+                             unique_orders=unique_orders,
+                             last_sale_date=last_sale_date,
+                             last_sync=last_sync)
+    finally:
+        session.close()
+        
 if __name__ == '__main__':
     # Создаем таблицы если их нет
     Base.metadata.create_all(engine)
