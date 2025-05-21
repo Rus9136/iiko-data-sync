@@ -1,113 +1,137 @@
-{% extends "base.html" %}
-
-{% block title %}Главная - IIKO Data Sync{% endblock %}
-
-{% block content %}
-<div class="row">
-    <div class="col-md-12">
-        <h1>IIKO Data Sync Dashboard</h1>
-        <hr>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-box"></i> Всего продуктов
-                </h5>
-                <h2 class="card-text">{{ total_products }}</h2>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-check-circle"></i> Активные
-                </h5>
-                <h2 class="card-text">{{ active_products }}</h2>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-white bg-danger">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-trash"></i> Удаленные
-                </h5>
-                <h2 class="card-text">{{ deleted_products }}</h2>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card text-white bg-info">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-clock"></i> Последняя синхронизация
-                </h5>
-                <p class="card-text">
-                    {% if last_sync %}
-                        {{ last_sync.sync_date.strftime('%d.%m.%Y %H:%M') }}
-                    {% else %}
-                        Никогда
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Быстрые действия</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <button class="btn btn-primary" onclick="syncData()">
-                        <i class="bi bi-arrow-repeat"></i> Запустить синхронизацию
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIKO Data Sync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>IIKO Data Sync</h1>
+            <p class="subtitle">Система синхронизации данных</p>
+        </header>
+        
+        <main>
+            <!-- Основные действия -->
+            <div class="action-section">
+                <h2>Действия</h2>
+                <div class="action-grid">
+                    <button class="action-btn primary" onclick="syncData('products')">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Получить номенклатуру
                     </button>
-                    <a href="/products" class="btn btn-secondary">
-                        <i class="bi bi-list"></i> Просмотр номенклатуры
-                    </a>
-                    <a href="/logs" class="btn btn-info">
-                        <i class="bi bi-clock-history"></i> История синхронизаций
-                    </a>
+                    <button class="action-btn secondary" onclick="showProductsList()">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                        Список номенклатуры
+                    </button>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Информация о системе</h5>
+
+            <!-- Будущие разделы -->
+            <div class="future-section">
+                <h2>Скоро</h2>
+                <div class="action-grid">
+                    <button class="action-btn disabled" disabled>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                        Подразделения
+                    </button>
+                    <button class="action-btn disabled" disabled>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Поставщики
+                    </button>
+                </div>
             </div>
-            <div class="card-body">
-                <ul class="list-unstyled">
-                    <li><strong>База данных:</strong> PostgreSQL</li>
-                    <li><strong>API:</strong> IIKO REST API v2</li>
-                    <li><strong>Статус:</strong> <span class="badge bg-success">Активен</span></li>
-                    {% if last_sync and last_sync.status == 'success' %}
-                        <li><strong>Последняя синхронизация:</strong> 
-                            <span class="badge bg-success">Успешно</span>
-                            ({{ last_sync.records_count }} записей)
-                        </li>
-                    {% elif last_sync and last_sync.status == 'error' %}
-                        <li><strong>Последняя синхронизация:</strong> 
-                            <span class="badge bg-danger">Ошибка</span>
-                            {{ last_sync.error_message }}
-                        </li>
-                    {% endif %}
-                </ul>
+
+            <!-- Статистика -->
+            <div class="stats-section">
+                <h2>Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_products }}</div>
+                        <div class="stat-label">Продуктов в базе</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ active_products }}</div>
+                        <div class="stat-label">Активных</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">
+                            {% if last_sync %}
+                                {{ last_sync.sync_date.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                                Нет данных
+                            {% endif %}
+                        </div>
+                        <div class="stat-label">Последняя синхронизация</div>
+                    </div>
+                </div>
             </div>
-        </div>
+        </main>
     </div>
-</div>
-{% endblock %}
+
+    <!-- Toast уведомления -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Функция для показа уведомлений
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Синхронизация данных
+        async function syncData(entity) {
+            const button = event.target.closest('button');
+            button.disabled = true;
+            button.classList.add('loading');
+            
+            showToast('Запуск синхронизации...', 'info');
+            
+            try {
+                const response = await fetch('/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ entity: entity })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast(data.message || 'Синхронизация завершена', 'success');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showToast(data.error || 'Ошибка синхронизации', 'error');
+                }
+            } catch (error) {
+                showToast('Ошибка сети: ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.classList.remove('loading');
+            }
+        }
+
+        // Показать список продуктов
+        function showProductsList() {
+            window.location.href = '/products';
+        }
+    </script>
+</body>
+</html>

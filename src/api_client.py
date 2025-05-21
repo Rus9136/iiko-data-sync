@@ -91,6 +91,55 @@ class IIKOApiClient:
         logger.info(f"Загрузка завершена. Всего загружено {len(all_products)} продуктов")        
         return all_products
     
+    def get_stores(self) -> list:
+        """Получение списка складов"""
+        import logging
+        import xml.etree.ElementTree as ET
+        from io import StringIO
+        
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+            
+        stores_url = f"{self.base_url}/corporation/stores"
+        params = {
+            'key': self.token,
+            'revisionFrom': -1
+        }
+        
+        logger.info(f"Загрузка списка складов...")
+        
+        response = requests.get(stores_url, params=params)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        # Парсинг XML-ответа
+        try:
+            xml_data = response.text
+            root = ET.fromstring(xml_data)
+            
+            stores_data = []
+            for store_elem in root.findall('./corporateItemDto'):
+                store_data = {
+                    'id': store_elem.findtext('id'),
+                    'parentId': store_elem.findtext('parentId'),
+                    'code': store_elem.findtext('code'),
+                    'name': store_elem.findtext('name'),
+                    'type': store_elem.findtext('type')
+                }
+                stores_data.append(store_data)
+                
+            logger.info(f"Загружено {len(stores_data)} складов")
+            return stores_data
+            
+        except Exception as e:
+            logger.error(f"Ошибка при парсинге XML-ответа: {e}")
+            logger.debug(f"Полученный XML: {response.text[:1000]}...")
+            raise
+    
     def analyze_products_structure(self) -> Dict[str, set]:
         """Анализ структуры данных продуктов"""
         products_data = self.get_products()

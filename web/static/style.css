@@ -1,85 +1,339 @@
-/* Дополнительные стили для IIKO Data Sync */
+/* Современный минималистичный стиль */
 
-/* Анимация загрузки */
-.loading {
-    opacity: 0.6;
-    pointer-events: none;
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* Карточки на главной */
-.card {
-    transition: all 0.3s ease;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    line-height: 1.6;
 }
 
-/* Таблица продуктов */
-.table-hover tbody tr:hover {
-    background-color: #f5f5f5;
-    cursor: pointer;
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
 }
 
-/* Статус бейджи */
-.badge {
-    font-weight: normal;
-    padding: 0.35em 0.65em;
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 3rem;
 }
 
-/* Хлебные крошки */
-.breadcrumb {
-    background-color: #f8f9fa;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
 }
 
-/* Пагинация */
-.pagination {
-    margin-top: 2rem;
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 1.125rem;
 }
 
-/* Форма поиска */
-.search-form {
+/* Sections */
+.action-section,
+.future-section,
+.stats-section {
+    margin-bottom: 3rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
     margin-bottom: 1.5rem;
+    color: var(--text-primary);
 }
 
-/* Детали продукта */
-.product-detail table th {
-    background-color: #f8f9fa;
+/* Action Grid */
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
 }
 
-/* Анимация кнопки синхронизации */
-.btn-sync {
-    position: relative;
+/* Buttons */
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: white;
+}
+
+.action-btn svg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.action-btn.primary {
+    background-color: var(--primary-color);
+}
+
+.action-btn.primary:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+}
+
+.action-btn.secondary {
+    background-color: var(--secondary-color);
+}
+
+.action-btn.secondary:hover {
+    background-color: #475569;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+}
+
+.action-btn.disabled {
+    background-color: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.action-btn.disabled:hover {
+    transform: none;
+}
+
+.action-btn.loading {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    color: white;
+    font-weight: 500;
+    transform: translateY(100%);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.toast.info {
+    background-color: var(--primary-color);
+}
+
+.toast.success {
+    background-color: var(--success-color);
+}
+
+.toast.error {
+    background-color: var(--error-color);
+}
+
+.toast.warning {
+    background-color: var(--warning-color);
+}
+
+/* Products Page */
+.products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.search-bar {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+    max-width: 500px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.search-btn {
+    padding: 0.75rem 1.5rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+    background-color: #1d4ed8;
+}
+
+/* Table */
+.table-container {
+    background: var(--card-bg);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow);
     overflow: hidden;
 }
 
-.btn-sync.loading::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: -100%;
+.products-table {
     width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-    animation: loading 1.5s infinite;
+    border-collapse: collapse;
 }
 
-@keyframes loading {
-    to {
-        left: 100%;
-    }
+.products-table th,
+.products-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
 }
 
-/* Отзывчивость */
+.products-table th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+}
+
+.products-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.products-table a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.products-table a:hover {
+    text-decoration: underline;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 2rem;
+}
+
+.pagination a,
+.pagination span {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.pagination a:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.pagination .active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-    .table-responsive {
-        font-size: 0.875rem;
+    .container {
+        padding: 1rem;
     }
     
-    .card-body h2 {
-        font-size: 1.5rem;
+    h1 {
+        font-size: 2rem;
+    }
+    
+    .products-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .search-bar {
+        width: 100%;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .products-table {
+        min-width: 600px;
     }
 }

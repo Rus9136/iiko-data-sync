@@ -1,11 +1,17 @@
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, UniqueConstraint
+from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, UniqueConstraint, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from datetime import datetime
 import uuid
+import enum
 
 Base = declarative_base()
+
+class StoreType(enum.Enum):
+    STORE = "STORE"  # Склад
+    PRODUCTION = "PRODUCTION"  # Производство
+    OTHER = "OTHER"  # Другое
 
 class Product(Base):
     __tablename__ = 'products'
@@ -71,6 +77,23 @@ class Category(Base):
     products_in_category = relationship("Product", foreign_keys="Product.category_id", back_populates="category")
     products_in_tax_category = relationship("Product", foreign_keys="Product.tax_category_id", back_populates="tax_category")
     products_in_accounting_category = relationship("Product", foreign_keys="Product.accounting_category_id", back_populates="accounting_category")
+
+class Store(Base):
+    __tablename__ = 'stores'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey('stores.id'), nullable=True)
+    code = Column(String(50), nullable=True)
+    name = Column(String(255), nullable=False)
+    type = Column(Enum(StoreType), default=StoreType.STORE)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    parent = relationship("Store", remote_side=[id], backref="children")
 
 class SyncLog(Base):
     __tablename__ = 'sync_log'

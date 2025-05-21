@@ -7,6 +7,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.synchronizer import DataSynchronizer
+from src.store_synchronizer import StoreSynchronizer
 import argparse
 import logging
 from datetime import datetime
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(description='IIKO Data Synchronizer')
-    parser.add_argument('--entity', choices=['products', 'all'], default='all',
+    parser.add_argument('--entity', choices=['products', 'stores', 'all'], default='all',
                       help='Какие сущности синхронизировать')
     parser.add_argument('--analyze', action='store_true',
                       help='Только проанализировать структуру данных')
@@ -45,6 +46,11 @@ def main():
             if args.entity in ['products', 'all']:
                 logger.info("Синхронизация продуктов...")
                 synchronizer.sync_products()
+            
+            if args.entity in ['stores', 'all']:
+                logger.info("Синхронизация складов...")
+                store_synchronizer = StoreSynchronizer()
+                store_synchronizer.sync_stores()
                 
             logger.info("Синхронизация завершена успешно")
             
