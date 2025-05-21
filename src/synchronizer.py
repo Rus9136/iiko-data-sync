@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 import json
 from datetime import datetime
 from src.models import Base, Product, ProductModifier, Category, SyncLog
-from src.api_client import IIKOApiClient
+from src.api_client import IikoApiClient
 from config.config import DATABASE_CONFIG
 import logging
 
@@ -22,7 +22,7 @@ class DataSynchronizer:
         self.session = Session()
         
         # Клиент API
-        self.api_client = IIKOApiClient()
+        self.api_client = IikoApiClient()
         
         # Счетчики для отчетности
         self.counters = {

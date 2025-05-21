@@ -98,7 +98,7 @@ python main.py --analyze     # Только анализ структуры
 ## Основные компоненты
 
 ### api_client.py
-- `IIKOApiClient` - класс для работы с API
+- `IikoApiClient` - класс для работы с API
   - `authenticate()` - получение токена
   - `get_products()` - получение продуктов
   - `get_departments()` - получение подразделений

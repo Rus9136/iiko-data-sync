@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any, Optional
 from config.config import IIKO_API_BASE_URL, IIKO_API_LOGIN, IIKO_API_PASSWORD
 
-class IIKOApiClient:
+class IikoApiClient:
     def __init__(self):
         self.base_url = IIKO_API_BASE_URL
         self.token = None
@@ -162,3 +162,53 @@ class IIKOApiClient:
             'main_keys': all_keys,
             'nested_structures': nested_structures
         }
+    
+    def get_sales(self, start_date=None, end_date=None) -> list:
+        """Получение данных о продажах
+        
+        :param start_date: Начальная дата в формате YYYY-MM-DD
+        :param end_date: Конечная дата в формате YYYY-MM-DD
+        :return: Список продаж
+        """
+        import logging
+        from datetime import datetime, timedelta
+        
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+        
+        # Если даты не указаны, берем последние 7 дней
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        
+        sales_url = f"{self.base_url}/reports/sales"
+        
+        headers = {
+            'Cookie': f'key={self.token}',
+            'Content-Type': 'application/json'
+        }
+        
+        params = {
+            'dateFrom': start_date,
+            'dateTo': end_date,
+            'reportType': 'SALES'
+        }
+        
+        logger.info(f"Загрузка продаж с {start_date} по {end_date}...")
+        
+        response = requests.get(sales_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        sales_data = response.json()
+        
+        if isinstance(sales_data, dict) and 'data' in sales_data:
+            sales_data = sales_data['data']
+        
+        logger.info(f"Загружено {len(sales_data)} записей о продажах")
+        return sales_data

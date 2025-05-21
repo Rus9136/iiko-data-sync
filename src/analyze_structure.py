@@ -2,11 +2,11 @@ import json
 import sys
 sys.path.append('/Users/rus/Projects/iiko-data-sync')
 
-from src.api_client import IIKOApiClient
+from src.api_client import IikoApiClient
 
 def analyze_api_response():
     """Анализ структуры ответа API для создания таблиц БД"""
-    client = IIKOApiClient()
+    client = IikoApiClient()
     
     try:
         # Получаем токен

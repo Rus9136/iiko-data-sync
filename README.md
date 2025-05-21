@@ -13,7 +13,9 @@ iiko-data-sync/
 ├── src/
 │   ├── api_client.py      # Клиент для работы с IIKO API
 │   ├── models.py          # SQLAlchemy модели
-│   └── synchronizer.py    # Логика синхронизации
+│   ├── synchronizer.py    # Логика синхронизации продуктов
+│   ├── store_synchronizer.py # Логика синхронизации складов
+│   └── sales_synchronizer.py # Логика синхронизации продаж
 ├── logs/                  # Логи работы (создается автоматически)
 ├── main.py               # Основной скрипт запуска
 ├── requirements.txt      # Зависимости проекта
@@ -65,6 +67,26 @@ python main.py
 python main.py --entity products
 ```
 
+### Синхронизация только складов
+```bash
+python main.py --entity stores
+```
+
+### Синхронизация продаж
+```bash
+python main.py --entity sales
+```
+
+### Тестирование API продаж
+```bash
+python test_sales.py --api
+```
+
+### Тестирование синхронизации продаж
+```bash
+python test_sales.py --sync
+```
+
 ### Анализ структуры данных API
 ```bash
 python main.py --analyze
@@ -78,9 +100,12 @@ python test_api.py
 ## Таблицы базы данных
 
 - `products` - основная таблица продуктов
-- `product_groups` - группы продуктов
-- `product_categories` - категории продуктов
-- `measurement_units` - единицы измерения
+- `product_modifiers` - связь продуктов и модификаторов
+- `categories` - категории продуктов (налоговые, продуктовые, бухгалтерские)
+- `stores` - склады и подразделения
+- `sales` - продажи и чеки
+- `receipts` - квитанции
+- `receipt_items` - позиции квитанций
 - `sync_log` - лог синхронизации
 
 ## Расширение функциональности
