@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store.name }} - IIKO Data Sync</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="detail-header">
+            <div>
+                <h1>{{ store.name }}</h1>
+                <button onclick="window.location.href='/stores'" class="back-btn">← К списку складов</button>
+            </div>
+        </header>
+        
+        <div class="detail-section">
+            <h2>Информация о складе</h2>
+            <div class="detail-grid">
+                <div class="detail-row">
+                    <span class="detail-label">UUID:</span>
+                    <span class="detail-value">{{ store.id }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Код:</span>
+                    <span class="detail-value">{{ store.code or 'Не указан' }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Название:</span>
+                    <span class="detail-value">{{ store.name }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Тип:</span>
+                    <span class="detail-value">{{ store.type }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Родительский склад:</span>
+                    <span class="detail-value">
+                        {% if parent %}
+                            <a href="/store/{{ parent.id }}">{{ parent.name }}</a>
+                        {% else %}
+                            Нет
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Дата создания:</span>
+                    <span class="detail-value">{{ store.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Последнее обновление:</span>
+                    <span class="detail-value">{{ store.updated_at.strftime('%d.%m.%Y %H:%M:%S') }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Последняя синхронизация:</span>
+                    <span class="detail-value">{{ store.synced_at.strftime('%d.%m.%Y %H:%M:%S') }}</span>
+                </div>
+            </div>
+        </div>
+        
+        {% if children %}
+        <div class="detail-section">
+            <h2>Дочерние склады</h2>
+            <div class="table-container">
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>Код</th>
+                            <th>Название</th>
+                            <th>Тип</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for child in children %}
+                        <tr>
+                            <td>{{ child.code or '-' }}</td>
+                            <td>
+                                <a href="/store/{{ child.id }}">{{ child.name }}</a>
+                            </td>
+                            <td>{{ child.type }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <style>
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .detail-header h1 {
+            margin-bottom: 0.5rem;
+        }
+        
+        .back-btn {
+            padding: 0.5rem 1rem;
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .back-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .detail-section {
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .detail-section h2 {
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+            color: var(--primary-color);
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        .detail-row {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+        
+        .detail-value {
+            font-weight: 500;
+        }
+        
+        @media (max-width: 768px) {
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</body>
+</html>

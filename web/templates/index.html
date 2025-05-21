@@ -31,6 +31,18 @@
                         </svg>
                         Список номенклатуры
                     </button>
+                    <button class="action-btn primary" onclick="syncData('stores')">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Получить склады
+                    </button>
+                    <button class="action-btn secondary" onclick="showStoresList()">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
+                        </svg>
+                        Список складов
+                    </button>
                 </div>
             </div>
 
@@ -64,6 +76,10 @@
                     <div class="stat-card">
                         <div class="stat-value">{{ active_products }}</div>
                         <div class="stat-label">Активных</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_stores }}</div>
+                        <div class="stat-label">Складов в базе</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value">
@@ -131,6 +147,11 @@
         // Показать список продуктов
         function showProductsList() {
             window.location.href = '/products';
+        }
+        
+        // Показать список складов
+        function showStoresList() {
+            window.location.href = '/stores';
         }
     </script>
 </body>

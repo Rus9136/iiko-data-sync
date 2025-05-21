@@ -9,8 +9,9 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import json
 
-from src.models import Base, Product, Category, SyncLog
+from src.models import Base, Product, Category, SyncLog, Store
 from src.synchronizer import DataSynchronizer
+from src.store_synchronizer import StoreSynchronizer
 from config.config import DATABASE_CONFIG
 
 app = Flask(__name__)
@@ -28,18 +29,28 @@ def index():
     """Главная страница"""
     session = Session()
     try:
-        # Получаем статистику
+        # Получаем статистику по продуктам
         total_products = session.query(func.count(Product.id)).scalar() or 0
         active_products = session.query(func.count(Product.id)).filter(Product.deleted == False).scalar() or 0
         deleted_products = session.query(func.count(Product.id)).filter(Product.deleted == True).scalar() or 0
         
-        # Последняя синхронизация
-        last_sync = session.query(SyncLog).filter(SyncLog.entity_type == 'products').order_by(SyncLog.sync_date.desc()).first()
+        # Получаем статистику по складам
+        total_stores = session.query(func.count(Store.id)).scalar() or 0
+        
+        # Последняя синхронизация (берем самую позднюю между продуктами и складами)
+        last_sync_products = session.query(SyncLog).filter(SyncLog.entity_type == 'products').order_by(SyncLog.sync_date.desc()).first()
+        last_sync_stores = session.query(SyncLog).filter(SyncLog.entity_type == 'stores').order_by(SyncLog.sync_date.desc()).first()
+        
+        if last_sync_products and last_sync_stores:
+            last_sync = last_sync_products if last_sync_products.sync_date > last_sync_stores.sync_date else last_sync_stores
+        else:
+            last_sync = last_sync_products or last_sync_stores
         
         return render_template('index.html', 
                              total_products=total_products,
                              active_products=active_products,
                              deleted_products=deleted_products,
+                             total_stores=total_stores,
                              last_sync=last_sync)
     finally:
         session.close()
@@ -95,13 +106,70 @@ def products():
     finally:
         session.close()
 
+@app.route('/stores')
+def stores():
+    """Список складов"""
+    session = Session()
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        # Фильтры
+        search = request.args.get('search', '')
+        
+        # Базовый запрос
+        query = session.query(Store)
+        
+        # Применяем фильтры
+        if search:
+            query = query.filter(Store.name.ilike(f'%{search}%') | 
+                                (Store.code.isnot(None) & Store.code.ilike(f'%{search}%')))
+        
+        # Пагинация
+        total = query.count()
+        stores = query.order_by(Store.name).offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Подготовка данных для отображения
+        stores_data = []
+        for store in stores:
+            stores_data.append({
+                'id': str(store.id),
+                'name': store.name,
+                'code': store.code,
+                'type': store.type.name if hasattr(store.type, 'name') else store.type,
+                'parent_id': str(store.parent_id) if store.parent_id else None,
+                'synced_at': store.synced_at.strftime('%Y-%m-%d %H:%M:%S') if store.synced_at else None
+            })
+        
+        return render_template('stores.html', 
+                             stores=stores_data,
+                             page=page,
+                             total_pages=(total + per_page - 1) // per_page,
+                             total=total,
+                             search=search)
+    finally:
+        session.close()
+
 @app.route('/sync', methods=['POST'])
 def sync():
     """Запуск синхронизации"""
     try:
-        synchronizer = DataSynchronizer()
-        synchronizer.sync_products()
-        return jsonify({'status': 'success', 'message': 'Синхронизация завершена успешно'})
+        # Получаем тип синхронизации из JSON-запроса
+        data = request.json
+        entity = data.get('entity', 'products')
+        
+        if entity == 'products':
+            synchronizer = DataSynchronizer()
+            synchronizer.sync_products()
+            message = 'Синхронизация продуктов завершена успешно'
+        elif entity == 'stores':
+            store_synchronizer = StoreSynchronizer()
+            store_synchronizer.sync_stores()
+            message = 'Синхронизация складов завершена успешно'
+        else:
+            return jsonify({'status': 'error', 'message': f'Неизвестный тип сущности: {entity}'}), 400
+            
+        return jsonify({'status': 'success', 'message': message})
     except Exception as e:
         import traceback
         error_message = str(e)
@@ -134,6 +202,29 @@ def product_detail(product_id):
                              parent=parent,
                              children=children,
                              category=category)
+    finally:
+        session.close()
+
+@app.route('/store/<store_id>')
+def store_detail(store_id):
+    """Детали склада"""
+    session = Session()
+    try:
+        store = session.query(Store).filter_by(id=store_id).first()
+        if not store:
+            return "Склад не найден", 404
+        
+        # Получаем связанные данные
+        parent = None
+        if store.parent_id:
+            parent = session.query(Store).filter_by(id=store.parent_id).first()
+        
+        children = session.query(Store).filter_by(parent_id=store_id).all()
+        
+        return render_template('store_detail.html', 
+                             store=store,
+                             parent=parent,
+                             children=children)
     finally:
         session.close()
 
