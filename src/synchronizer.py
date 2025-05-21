@@ -37,9 +37,38 @@ class DataSynchronizer:
             logger.info("Начинаем синхронизацию продуктов...")
             self.counters = {'created': 0, 'updated': 0, 'errors': 0, 'skipped': 0}
             
+            # Очищаем таблицу продуктов перед синхронизацией
+            try:
+                logger.info("Очистка таблицы продуктов перед синхронизацией...")
+                product_count = self.session.query(Product).count()
+                logger.info(f"Текущее количество продуктов в БД: {product_count}")
+                self.session.query(ProductModifier).delete()
+                self.session.query(Product).delete()
+                self.session.commit()
+                logger.info("Таблица продуктов успешно очищена")
+            except Exception as e:
+                self.session.rollback()
+                logger.error(f"Ошибка при очистке таблицы продуктов: {e}")
+                raise
+            
             # Получаем данные из API
             products_data = self.api_client.get_products()
             logger.info(f"Получено {len(products_data)} продуктов из API")
+            
+            # Добавляем отладочную информацию о первых и последних продуктах
+            if products_data:
+                first_products = products_data[:5]
+                last_products = products_data[-5:]
+                
+                logger.info("Первые 5 продуктов из API:")
+                for i, p in enumerate(first_products):
+                    logger.info(f"  {i+1}. ID: {p.get('id')}, Название: {p.get('name')}, Код: {p.get('code')}")
+                    
+                logger.info("Последние 5 продуктов из API:")
+                for i, p in enumerate(last_products):
+                    logger.info(f"  {i+1}. ID: {p.get('id')}, Название: {p.get('name')}, Код: {p.get('code')}")
+            else:
+                logger.warning("Получен пустой список продуктов из API!")
             
             # Получаем список уже имеющихся id продуктов в БД для оптимизации
             existing_product_ids = set()
