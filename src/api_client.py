@@ -184,22 +184,71 @@ class IikoApiClient:
         if not start_date:
             start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
         
-        sales_url = f"{self.base_url}/reports/sales"
+        sales_url = f"{self.base_url}/v2/reports/olap"
         
         headers = {
-            'Cookie': f'key={self.token}',
             'Content-Type': 'application/json'
         }
         
         params = {
-            'dateFrom': start_date,
-            'dateTo': end_date,
-            'reportType': 'SALES'
+            'key': self.token
+        }
+        
+        # Формируем тело запроса в соответствии с OLAP API
+        request_body = {
+            "reportType": "SALES",
+            "groupByRowFields": [
+                "OrderNum",
+                "Department", 
+                "DishName",
+                "DishCode",
+                "DishMeasureUnit",
+                "PrechequeTime",
+                "DeletedWithWriteoff",
+                "CashRegisterName",
+                "CashRegisterName.Number",
+                "CashRegisterName.CashRegisterSerialNumber",
+                "FiscalChequeNumber",
+                "OrderType",
+                "Store.Name",
+                "Department.Id",
+                "CloseTime",
+                "PayTypes",
+                "OrderIncrease.Type"
+            ],
+            "aggregateFields": [
+                "DishAmountInt",
+                "DishSumInt",
+                "DishDiscountSumInt",
+                "DishReturnSum",
+                "OrderItems",
+                "IncreaseSum"
+            ],
+            "filters": {
+                "OpenDate.Typed": {
+                    "filterType": "DateRange",
+                    "periodType": "CUSTOM",
+                    "from": start_date,
+                    "to": end_date
+                },
+                "OrderDeleted": {
+                    "filterType": "IncludeValues",
+                    "values": ["NOT_DELETED"]
+                },
+                "DeletedWithWriteoff": {
+                    "filterType": "IncludeValues",
+                    "values": [
+                        "NOT_DELETED", 
+                        "DELETED_WITH_WRITEOFF", 
+                        "DELETED_WITHOUT_WRITEOFF"
+                    ]
+                }
+            }
         }
         
         logger.info(f"Загрузка продаж с {start_date} по {end_date}...")
         
-        response = requests.get(sales_url, params=params, headers=headers)
+        response = requests.post(sales_url, params=params, headers=headers, json=request_body)
         response_status = response.status_code
         logger.info(f"Получен ответ от API со статусом: {response_status}")
         
@@ -209,6 +258,22 @@ class IikoApiClient:
         
         if isinstance(sales_data, dict) and 'data' in sales_data:
             sales_data = sales_data['data']
+            
+        # Преобразуем данные из OLAP в формат, который ожидает синхронизатор
+        formatted_sales = []
+        if isinstance(sales_data, list) and sales_data:
+            for row in sales_data:
+                sale_item = {}
+                for key, value in row.items():
+                    # Удаляем префиксы с номерами колонок из OLAP результата
+                    clean_key = key.split('.')[-1]  # Берем только часть после последней точки
+                    # Сохраняем полные ключи для специальных полей
+                    if key in ["CashRegisterName.Number", "CashRegisterName.CashRegisterSerialNumber", 
+                              "Department.Id", "OrderIncrease.Type"]:
+                        sale_item[key] = value
+                    else:
+                        sale_item[clean_key] = value
+                formatted_sales.append(sale_item)
         
-        logger.info(f"Загружено {len(sales_data)} записей о продажах")
-        return sales_data
+        logger.info(f"Загружено {len(formatted_sales)} записей о продажах")
+        return formatted_sales
