@@ -14,6 +14,7 @@ from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
 from config.config import DATABASE_CONFIG
+from web.report_controller import get_sales_report
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -502,6 +503,11 @@ def sales_sync():
     finally:
         session.close()
         
+@app.route('/sales/report')
+def sales_report():
+    """Отчет по продажам с группировкой"""
+    return get_sales_report()
+
 if __name__ == '__main__':
     # Создаем таблицы если их нет
     Base.metadata.create_all(engine)
