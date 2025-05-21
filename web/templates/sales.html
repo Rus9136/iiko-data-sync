@@ -87,9 +87,9 @@
                         <td>{{ sale.fiscal_cheque_number or '-' }}</td>
                         <td>{{ sale.dish_name }}</td>
                         <td>{{ sale.dish_amount }}</td>
-                        <td>{{ '{:,}'.format((sale.dish_sum / sale.dish_amount)|int).replace(',', ' ') if sale.dish_amount else 0 }} ₸</td>
-                        <td>{{ '{:,}'.format(sale.dish_discount_sum|int).replace(',', ' ') if sale.dish_discount_sum else 0 }} ₸</td>
-                        <td>{{ '{:,}'.format(sale.dish_sum|int).replace(',', ' ') }} ₸</td>
+                        <td>{{ '{:,}'.format((sale.dish_sum / sale.dish_amount)|int).replace(',', ' ') if sale.dish_sum and sale.dish_amount else 0 }} ₸</td>
+                        <td>{{ '{:,}'.format(sale.dish_discount_sum|int).replace(',', ' ') if sale.dish_discount_sum is not none else 0 }} ₸</td>
+                        <td>{{ '{:,}'.format(sale.dish_sum|int).replace(',', ' ') if sale.dish_sum is not none else 0 }} ₸</td>
                         <td>{{ sale.store_name or '-' }}</td>
                     </tr>
                     {% endfor %}

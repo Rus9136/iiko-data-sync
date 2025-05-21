@@ -409,8 +409,8 @@ def sale_detail(sale_id):
         ).all()
         
         # Подсчитываем общую сумму для чека
-        total_sum = sum(related.dish_sum or 0 for related in related_sales)
-        total_discount = sum(related.dish_discount_sum or 0 for related in related_sales)
+        total_sum = sum(related.dish_sum or 0 for related in related_sales if related.dish_sum is not None)
+        total_discount = sum(related.dish_discount_sum or 0 for related in related_sales if related.dish_discount_sum is not None)
         
         return render_template('sale_detail.html', 
                              sale=sale,
