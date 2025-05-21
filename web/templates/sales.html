@@ -49,11 +49,11 @@
                 <div class="summary-label">Всего продаж</div>
             </div>
             <div class="summary-card">
-                <div class="summary-value">{{ '{:,}'.format(total_sum|int).replace(',', ' ') }} ₸</div>
+                <div class="summary-value">{{ '{:,.3f}'.format(total_sum).replace(',', ' ') }} ₸</div>
                 <div class="summary-label">Сумма продаж</div>
             </div>
             <div class="summary-card">
-                <div class="summary-value">{{ '{:,}'.format(discount_sum|int).replace(',', ' ') }} ₸</div>
+                <div class="summary-value">{{ '{:,.3f}'.format(discount_sum).replace(',', ' ') }} ₸</div>
                 <div class="summary-label">Сумма скидок</div>
             </div>
             <div class="summary-card">
@@ -88,12 +88,12 @@
                         <td>{{ sale.dish_name }}</td>
                         <td>{{ sale.dish_amount }}</td>
                         <td>{% if sale.dish_sum is not none and sale.dish_amount is not none and sale.dish_amount > 0 %}
-                            {{ '{:,}'.format((sale.dish_sum / sale.dish_amount)|int).replace(',', ' ') }} ₸
+                            {{ '{:,.3f}'.format(sale.dish_sum / sale.dish_amount).replace(',', ' ') }} ₸
                         {% else %}
-                            0 ₸
+                            0.000 ₸
                         {% endif %}</td>
-                        <td>{{ '{:,}'.format(sale.dish_discount_sum|int).replace(',', ' ') if sale.dish_discount_sum is not none else 0 }} ₸</td>
-                        <td>{{ '{:,}'.format(sale.dish_sum|int).replace(',', ' ') if sale.dish_sum is not none else 0 }} ₸</td>
+                        <td>{{ '{:,.3f}'.format(sale.dish_discount_sum).replace(',', ' ') if sale.dish_discount_sum is not none else '0.000' }} ₸</td>
+                        <td>{{ '{:,.3f}'.format(sale.dish_sum).replace(',', ' ') if sale.dish_sum is not none else '0.000' }} ₸</td>
                         <td>{{ sale.store_name or '-' }}</td>
                     </tr>
                     {% endfor %}

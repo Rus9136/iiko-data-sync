@@ -101,19 +101,19 @@
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Сумма скидки:</span>
-                    <span class="detail-value">{{ '{:,}'.format(sale.dish_discount_sum|int).replace(',', ' ') if sale.dish_discount_sum is not none else '0' }} ₸</span>
+                    <span class="detail-value">{{ '{:,.3f}'.format(sale.dish_discount_sum).replace(',', ' ') if sale.dish_discount_sum is not none else '0.000' }} ₸</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Сумма возврата:</span>
-                    <span class="detail-value">{{ '{:,}'.format(sale.dish_return_sum|int).replace(',', ' ') if sale.dish_return_sum is not none else '0' }} ₸</span>
+                    <span class="detail-value">{{ '{:,.3f}'.format(sale.dish_return_sum).replace(',', ' ') if sale.dish_return_sum is not none else '0.000' }} ₸</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Общая сумма:</span>
-                    <span class="detail-value">{{ '{:,}'.format(sale.dish_sum|int).replace(',', ' ') if sale.dish_sum is not none else '0' }} ₸</span>
+                    <span class="detail-value">{{ '{:,.3f}'.format(sale.dish_sum).replace(',', ' ') if sale.dish_sum is not none else '0.000' }} ₸</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Наценка:</span>
-                    <span class="detail-value">{{ '{:,}'.format(sale.increase_sum|int).replace(',', ' ') if sale.increase_sum is not none else '0' }} ₸</span>
+                    <span class="detail-value">{{ '{:,.3f}'.format(sale.increase_sum).replace(',', ' ') if sale.increase_sum is not none else '0.000' }} ₸</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Тип наценки:</span>
@@ -146,16 +146,16 @@
                             </td>
                             <td>{{ related.dish_amount }}</td>
                             <td>{{ related.dish_measure_unit or '-' }}</td>
-                            <td>{{ '{:,}'.format(related.dish_discount_sum|int).replace(',', ' ') if related.dish_discount_sum is not none else '0' }} ₸</td>
-                            <td>{{ '{:,}'.format(related.dish_sum|int).replace(',', ' ') if related.dish_sum is not none else '0' }} ₸</td>
+                            <td>{{ '{:,.3f}'.format(related.dish_discount_sum).replace(',', ' ') if related.dish_discount_sum is not none else '0.000' }} ₸</td>
+                            <td>{{ '{:,.3f}'.format(related.dish_sum).replace(',', ' ') if related.dish_sum is not none else '0.000' }} ₸</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                     <tfoot>
                         <tr>
                             <td colspan="4" class="text-right"><strong>Итого:</strong></td>
-                            <td>{{ '{:,}'.format(total_discount|int).replace(',', ' ') }} ₸</td>
-                            <td>{{ '{:,}'.format(total_sum|int).replace(',', ' ') }} ₸</td>
+                            <td>{{ '{:,.3f}'.format(total_discount).replace(',', ' ') }} ₸</td>
+                            <td>{{ '{:,.3f}'.format(total_sum).replace(',', ' ') }} ₸</td>
                         </tr>
                     </tfoot>
                 </table>
