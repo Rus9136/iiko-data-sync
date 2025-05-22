@@ -38,6 +38,12 @@ python main.py
 # Sync only products
 python main.py --entity products
 
+# Sync sales data for specific date range
+python main.py --entity sales --date-from "2025-05-19 00:00:00" --date-to "2025-05-19 23:59:59"
+
+# Sync writeoff documents for specific date range
+python main.py --entity writeoffs --date-from "2025-05-19 00:00:00" --date-to "2025-05-19 23:59:59"
+
 # Analyze API structure only
 python main.py --analyze
 
@@ -119,8 +125,12 @@ iiko-data-sync/
 #### Web Interface (`web/app.py`)
 - Flask application with Bootstrap UI
 - CORS enabled for cross-origin requests
-- Endpoints: `/`, `/products`, `/product/<id>`, `/sync`, `/upload`, `/logs`, `/sales`, `/sales/sync`, `/sales/report`
+- Endpoints: `/`, `/products`, `/product/<id>`, `/sync`, `/upload`, `/logs`, `/sales`, `/sales/sync`, `/sales/report`, `/writeoffs`, `/writeoff/<id>`
 - Must run on `127.0.0.1` for macOS compatibility
+- **Sales Interface Redesign (2025-05)**: 
+  - Sales list shows receipt headers only (grouped by order_num and fiscal_cheque_number)
+  - Receipt detail page shows structured layout with header info and tabular positions
+  - Uses raw PostgreSQL SQL for proper aggregation with BOOL_OR and type casting
 
 ### Important Configuration
 
@@ -155,6 +165,9 @@ Key tables:
 - `product_modifiers`: Many-to-many relationship table
 - `stores`: Physical store locations
 - `sales`: Sales data with compound keys (order_num, fiscal_cheque_number, dish_code, cash_register_number)
+- `writeoff_documents`: Writeoff document headers with UUID id, document number, creation date
+- `writeoff_items`: Individual writeoff items with 3-decimal precision amounts
+- `accounts`: Account information for writeoffs filtering
 - `sync_log`: Tracks all sync operations
 
 ### Development Notes
@@ -168,6 +181,9 @@ When modifying the codebase:
 6. Use pagination for large datasets (4000 items per page)
 7. Handle NULL values in database queries properly
 8. Include storned flag when filtering sales data
+9. **PostgreSQL Aggregation**: Use raw SQL with proper PostgreSQL functions (BOOL_OR, type casting) when SQLAlchemy ORM has limitations
+10. **Writeoff Precision**: Display writeoff quantities with 3 decimal places (%.3f format)
+11. **Status Filtering**: Filter writeoff documents by NEW and PROCESSED statuses only
 
 ### Testing
 
