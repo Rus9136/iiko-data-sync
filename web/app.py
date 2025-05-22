@@ -441,7 +441,7 @@ def internal_error(error):
 
 @app.route('/sales')
 def sales():
-    """Список продаж"""
+    """Список чеков (группировка по заказам)"""
     session = Session()
     try:
         page = request.args.get('page', 1, type=int)
@@ -461,57 +461,83 @@ def sales():
         if to_date:
             to_date = to_date + timedelta(days=1)
         
-        # Базовый запрос
-        query = session.query(Sale)
+        # Простой подход - получаем уникальные чеки и считаем суммы в Python
+        from sqlalchemy import text
         
-        # Применяем фильтры
+        # Строим базовые условия фильтрации
+        where_conditions = []
+        params = {}
+        
         if from_date and to_date:
-            query = query.filter(Sale.close_time >= from_date, Sale.close_time < to_date)
-        
-        if search:
-            query = query.filter(or_(
-                Sale.dish_name.ilike(f'%{search}%'),
-                Sale.fiscal_cheque_number.ilike(f'%{search}%'),
-                Sale.dish_code.ilike(f'%{search}%'),
-                Sale.order_num.cast(String).ilike(f'%{search}%')
-            ))
+            where_conditions.append("close_time >= :from_date AND close_time < :to_date")
+            params['from_date'] = from_date
+            params['to_date'] = to_date
         
         if store_id:
-            query = query.filter(Sale.store_id == store_id)
+            where_conditions.append("store_id = :store_id")
+            params['store_id'] = store_id
             
-        # Добавляем фильтр по типу чека
         sale_type = request.args.get('sale_type', 'all')
         if sale_type == 'normal':
-            # Обычные продажи (не отменены, не возвраты)
-            query = query.filter(
-                Sale.storned == False, 
-                or_(Sale.dish_return_sum == 0, Sale.dish_return_sum == None)
-            )
-        elif sale_type == 'returns':
-            # Возвраты
-            query = query.filter(
-                or_(Sale.dish_return_sum > 0, and_(Sale.dish_return_sum != None, Sale.dish_return_sum > 0))
-            )
+            where_conditions.append("storned = false")
         elif sale_type == 'canceled':
-            # Отмененные чеки
-            query = query.filter(Sale.storned == True)
+            where_conditions.append("storned = true")
         
-        # Статистика для текущего запроса
-        total_count = query.count()
+        # Поисковые условия
+        search_conditions = []
+        if search:
+            search_conditions.append("(fiscal_cheque_number ILIKE :search OR order_num::text ILIKE :search OR department ILIKE :search)")
+            params['search'] = f'%{search}%'
         
-        # Использование func.sum для подсчета сумм
-        total_sum_query = session.query(func.sum(Sale.dish_sum)).filter(query.whereclause)
-        discount_sum_query = session.query(func.sum(Sale.dish_discount_sum)).filter(query.whereclause)
+        # Собираем WHERE clause
+        where_clause = ""
+        if where_conditions or search_conditions:
+            all_conditions = where_conditions + search_conditions
+            where_clause = "WHERE " + " AND ".join(all_conditions)
         
-        total_sum = total_sum_query.scalar() or 0
-        discount_sum = discount_sum_query.scalar() or 0
+        # SQL запрос для группировки чеков
+        sql_query = f"""
+        SELECT 
+            order_num,
+            fiscal_cheque_number,
+            MAX(close_time) as close_time,
+            MAX(cash_register_number) as cash_register_number,
+            MAX(cash_register_name) as cash_register_name,
+            MAX(department) as department,
+            MAX(store_name) as store_name,
+            MAX(pay_types) as pay_types,
+            BOOL_OR(storned) as storned,
+            MAX(deleted_with_writeoff) as deleted_with_writeoff,
+            SUM(dish_sum) as order_sum,
+            SUM(dish_discount_sum) as order_discount_sum,
+            SUM(dish_return_sum) as order_return_sum,
+            COUNT(*) as items_count,
+            MIN(id::text)::uuid as first_sale_id
+        FROM sales
+        {where_clause}
+        GROUP BY order_num, fiscal_cheque_number
+        ORDER BY MAX(close_time) DESC
+        LIMIT :limit OFFSET :offset
+        """
         
-        # Получение уникальных заказов
-        unique_orders_query = session.query(func.count(func.distinct(Sale.order_num))).filter(query.whereclause)
-        unique_orders = unique_orders_query.scalar() or 0
+        # Подсчет общего количества
+        count_sql = f"""
+        SELECT COUNT(DISTINCT (order_num, fiscal_cheque_number))
+        FROM sales
+        {where_clause}
+        """
         
-        # Пагинация
-        sales = query.order_by(Sale.close_time.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        # Выполняем запросы
+        params['limit'] = per_page
+        params['offset'] = (page - 1) * per_page
+        
+        total_count = session.execute(text(count_sql), params).scalar()
+        sales = session.execute(text(sql_query), params).fetchall()
+        
+        # Статистика
+        total_sum = sum(sale.order_sum or 0 for sale in sales)
+        discount_sum = sum(sale.order_discount_sum or 0 for sale in sales)
+        unique_orders = total_count
         
         # Получение списка складов для фильтра
         stores = session.query(Store).order_by(Store.name).all()
@@ -535,28 +561,34 @@ def sales():
 
 @app.route('/sale/<sale_id>')
 def sale_detail(sale_id):
-    """Детали продажи"""
+    """Детали чека"""
     session = Session()
     try:
         sale = session.query(Sale).filter_by(id=sale_id).first()
         if not sale:
             return "Продажа не найдена", 404
         
-        # Получаем другие товары в том же заказе
+        # Получаем все позиции в том же чеке
         related_sales = session.query(Sale).filter(
             Sale.order_num == sale.order_num,
             Sale.fiscal_cheque_number == sale.fiscal_cheque_number
-        ).all()
+        ).order_by(Sale.dish_name).all()
         
-        # Подсчитываем общую сумму для чека
-        total_sum = sum(related.dish_sum or 0 for related in related_sales if related.dish_sum is not None)
-        total_discount = sum(related.dish_discount_sum or 0 for related in related_sales if related.dish_discount_sum is not None)
+        # Подсчитываем статистику чека
+        total_sum = sum(related.dish_sum or 0 for related in related_sales)
+        total_discount = sum(related.dish_discount_sum or 0 for related in related_sales)
+        total_return = sum(related.dish_return_sum or 0 for related in related_sales)
+        total_increase = sum(related.increase_sum or 0 for related in related_sales)
+        order_items_count = len(related_sales)
         
         return render_template('sale_detail.html', 
                              sale=sale,
                              related_sales=related_sales,
                              total_sum=total_sum,
-                             total_discount=total_discount)
+                             total_discount=total_discount,
+                             total_return=total_return,
+                             total_increase=total_increase,
+                             order_items_count=order_items_count)
     finally:
         session.close()
 

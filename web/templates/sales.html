@@ -75,15 +75,15 @@
             <table class="products-table sales-table">
                 <thead>
                     <tr>
-                        <th>Дата/Время</th>
+                        <th>Дата закрытия</th>
                         <th>№ заказа</th>
                         <th>№ чека</th>
-                        <th>Наименование</th>
-                        <th>Кол-во</th>
-                        <th>Цена</th>
-                        <th>Скидка</th>
-                        <th>Сумма</th>
+                        <th>Сумма чека</th>
+                        <th>Номер кассы</th>
+                        <th>Касса</th>
+                        <th>Подразделение</th>
                         <th>Склад</th>
+                        <th>Тип оплаты</th>
                         <th>Статус</th>
                     </tr>
                 </thead>
@@ -92,23 +92,19 @@
                     <tr>
                         <td>{{ sale.close_time.strftime('%d.%m.%Y %H:%M') if sale.close_time else '' }}</td>
                         <td>
-                            <a href="/sale/{{ sale.id }}">{{ sale.order_num }}</a>
+                            <a href="/sale/{{ sale.first_sale_id }}">{{ sale.order_num }}</a>
                         </td>
                         <td>{{ sale.fiscal_cheque_number or '-' }}</td>
-                        <td>{{ sale.dish_name }}</td>
-                        <td>{{ sale.dish_amount }}</td>
-                        <td>{% if sale.dish_sum is not none and sale.dish_amount is not none and sale.dish_amount > 0 %}
-                            {{ '{:,.3f}'.format(sale.dish_sum / sale.dish_amount).replace(',', ' ') }} ₸
-                        {% else %}
-                            0.000 ₸
-                        {% endif %}</td>
-                        <td>{{ '{:,.3f}'.format(sale.dish_discount_sum).replace(',', ' ') if sale.dish_discount_sum is not none else '0.000' }} ₸</td>
-                        <td>{{ '{:,.3f}'.format(sale.dish_sum).replace(',', ' ') if sale.dish_sum is not none else '0.000' }} ₸</td>
+                        <td class="fw-bold">{{ '{:,.3f}'.format(sale.order_sum).replace(',', ' ') if sale.order_sum is not none else '0.000' }} ₸</td>
+                        <td>{{ sale.cash_register_number or '-' }}</td>
+                        <td>{{ sale.cash_register_name or '-' }}</td>
+                        <td>{{ sale.department or '-' }}</td>
                         <td>{{ sale.store_name or '-' }}</td>
+                        <td>{{ sale.pay_types or '-' }}</td>
                         <td>
                             {% if sale.storned == True %}
                                 <span class="badge error">Отменен</span>
-                            {% elif sale.deleted_with_writeoff == 'NOT_DELETED' and sale.dish_return_sum is not none and sale.dish_return_sum > 0 %}
+                            {% elif sale.deleted_with_writeoff == 'NOT_DELETED' and sale.order_return_sum is not none and sale.order_return_sum > 0 %}
                                 <span class="badge warning">Возврат</span>
                             {% elif sale.deleted_with_writeoff == 'NOT_DELETED' %}
                                 <span class="badge success">Активный</span>
