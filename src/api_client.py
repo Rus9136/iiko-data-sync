@@ -336,7 +336,7 @@ class IikoApiClient:
         return accounts_data
     
     def get_writeoff_documents(self, date_from=None, date_to=None) -> list:
-        """Получение документов списания за период"""
+        """Получение документов списания за период с фильтрацией по статусам NEW и PROCESSED"""
         import logging
         from datetime import datetime, timedelta
         
@@ -345,11 +345,11 @@ class IikoApiClient:
         if not self.token:
             self.authenticate()
         
-        # Если даты не указаны, берем последний месяц
+        # Если даты не указаны, берем вчерашний день для тестирования
         if not date_to:
             date_to = datetime.now().strftime('%Y-%m-%d')
         if not date_from:
-            date_from = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            date_from = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
             
         writeoff_url = f"{self.base_url}/v2/documents/writeoff"
         headers = {
@@ -377,6 +377,28 @@ class IikoApiClient:
         else:
             documents_data = response_data
             
-        logger.info(f"Загружено {len(documents_data)} документов списания")
+        logger.info(f"Всего получено {len(documents_data)} документов списания")
         
-        return documents_data
+        # Сначала проанализируем статусы, которые приходят из API
+        status_counts = {}
+        for doc in documents_data:
+            status = doc.get('status', 'Unknown')
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        if status_counts:
+            logger.info(f"Статусы документов из API: {status_counts}")
+        
+        # Фильтруем документы только со статусами NEW и PROCESSED
+        allowed_statuses = ['NEW', 'PROCESSED']
+        filtered_documents = []
+        
+        for doc in documents_data:
+            doc_status = doc.get('status', '')
+            if doc_status in allowed_statuses:
+                filtered_documents.append(doc)
+            else:
+                logger.debug(f"Пропущен документ {doc.get('documentNumber', 'без номера')} со статусом {doc_status}")
+        
+        logger.info(f"После фильтрации по статусам ({', '.join(allowed_statuses)}) осталось {len(filtered_documents)} документов")
+        
+        return filtered_documents
