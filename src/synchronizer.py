@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import json
 from datetime import datetime
-from src.models import Base, Product, ProductModifier, Category, SyncLog, Account
+from src.models import Base, Product, ProductModifier, Category, SyncLog, Account, WriteoffDocument, WriteoffItem, WriteoffDocumentStatus
 from src.api_client import IikoApiClient
 from config.config import DATABASE_CONFIG
 import logging
@@ -32,24 +32,15 @@ class DataSynchronizer:
         }
     
     def sync_products(self):
-        """Синхронизация продуктов из API в БД"""
+        """Синхронизация продуктов из API в БД с использованием upsert логики"""
         try:
             logger.info("Начинаем синхронизацию продуктов...")
             self.counters = {'created': 0, 'updated': 0, 'errors': 0, 'skipped': 0}
             
-            # Очищаем таблицу продуктов перед синхронизацией
-            try:
-                logger.info("Очистка таблицы продуктов перед синхронизацией...")
-                product_count = self.session.query(Product).count()
-                logger.info(f"Текущее количество продуктов в БД: {product_count}")
-                self.session.query(ProductModifier).delete()
-                self.session.query(Product).delete()
-                self.session.commit()
-                logger.info("Таблица продуктов успешно очищена")
-            except Exception as e:
-                self.session.rollback()
-                logger.error(f"Ошибка при очистке таблицы продуктов: {e}")
-                raise
+            # Получаем текущее количество продуктов в БД
+            product_count = self.session.query(Product).count()
+            logger.info(f"Текущее количество продуктов в БД: {product_count}")
+            logger.info("Используем upsert логику для обновления продуктов...")
             
             # Получаем данные из API
             products_data = self.api_client.get_products()
@@ -370,13 +361,7 @@ class DataSynchronizer:
             if code == '':
                 code = None  # Convert empty string to NULL for database
             
-            # Проверяем, существует ли продукт с таким кодом (если код не пустой)
-            if code:
-                existing_product_by_code = self.session.query(Product).filter_by(code=code).first()
-                if existing_product_by_code:
-                    logger.warning(f"Продукт с кодом {code} уже существует (id: {existing_product_by_code.id}). Пропускаем создание нового продукта {product_id}.")
-                    self.counters['skipped'] += 1
-                    return False
+            # Разрешаем продукты с дублирующимися кодами (уникальность по ID)
             
             # Создаем новый продукт с базовой информацией, без родительских ссылок
             product = Product(
@@ -617,6 +602,175 @@ class DataSynchronizer:
                 logger.error(f"Не удалось записать ошибку в лог: {log_error}")
             
             logger.error(f"Ошибка синхронизации счетов: {e}")
+            return False
+    
+    def sync_writeoff_documents(self, date_from=None, date_to=None):
+        """Синхронизация документов списания из API в БД"""
+        try:
+            logger.info("Начинаем синхронизацию документов списания...")
+            self.counters = {'created': 0, 'updated': 0, 'errors': 0, 'items_created': 0, 'items_updated': 0, 'skipped': 0}
+            
+            # Получаем данные из API
+            documents_data = self.api_client.get_writeoff_documents(date_from, date_to)
+            logger.info(f"Получено {len(documents_data)} документов списания из API")
+            
+            # Получаем список уже имеющихся id документов в БД
+            existing_document_ids = set()
+            try:
+                for row in self.session.query(WriteoffDocument.id).all():
+                    existing_document_ids.add(str(row[0]))
+                logger.info(f"В базе данных уже есть {len(existing_document_ids)} документов списания")
+            except Exception as e:
+                logger.error(f"Ошибка при получении существующих ID документов: {e}")
+                existing_document_ids = set()
+            
+            # Обрабатываем каждый документ
+            for doc_data in documents_data:
+                try:
+                    document_id = doc_data.get('id')
+                    
+                    # Проверяем, существует ли документ
+                    existing_document = self.session.query(WriteoffDocument).filter_by(id=document_id).first()
+                    
+                    # Парсим дату
+                    date_incoming_str = doc_data.get('dateIncoming')
+                    date_incoming = None
+                    if date_incoming_str:
+                        try:
+                            # Формат: "2025-02-20T23:00"
+                            date_incoming = datetime.strptime(date_incoming_str, '%Y-%m-%dT%H:%M')
+                        except ValueError:
+                            logger.warning(f"Не удалось разобрать дату {date_incoming_str} для документа {document_id}")
+                            date_incoming = datetime.utcnow()
+                    
+                    # Парсим статус
+                    status_str = doc_data.get('status')
+                    try:
+                        status = WriteoffDocumentStatus(status_str) if status_str else WriteoffDocumentStatus.NEW
+                    except ValueError:
+                        logger.warning(f"Неизвестный статус документа: {status_str}, используем NEW")
+                        status = WriteoffDocumentStatus.NEW
+                    
+                    if existing_document:
+                        # Обновляем существующий документ
+                        existing_document.date_incoming = date_incoming
+                        existing_document.document_number = doc_data.get('documentNumber')
+                        existing_document.status = status
+                        existing_document.conception_id = doc_data.get('conceptionId')
+                        existing_document.comment = doc_data.get('comment')
+                        existing_document.store_id = doc_data.get('storeId')
+                        existing_document.account_id = doc_data.get('accountId')
+                        existing_document.updated_at = datetime.utcnow()
+                        existing_document.synced_at = datetime.utcnow()
+                        self.counters['updated'] += 1
+                        
+                        # Удаляем старые позиции и создаем новые
+                        self.session.query(WriteoffItem).filter_by(document_id=document_id).delete()
+                        
+                    else:
+                        # Создаем новый документ
+                        document = WriteoffDocument(
+                            id=document_id,
+                            date_incoming=date_incoming,
+                            document_number=doc_data.get('documentNumber'),
+                            status=status,
+                            conception_id=doc_data.get('conceptionId'),
+                            comment=doc_data.get('comment'),
+                            store_id=doc_data.get('storeId'),
+                            account_id=doc_data.get('accountId'),
+                            synced_at=datetime.utcnow()
+                        )
+                        self.session.add(document)
+                        self.counters['created'] += 1
+                    
+                    # Синхронизируем позиции документа
+                    items_data = doc_data.get('items', [])
+                    for item_data in items_data:
+                        try:
+                            product_id = item_data.get('productId')
+                            
+                            # Проверяем существование товара
+                            if product_id:
+                                product_exists = self.session.query(Product).filter_by(id=product_id).first() is not None
+                                if not product_exists:
+                                    logger.warning(f"Товар {product_id} не найден в БД, пропускаем позицию {item_data.get('num')} документа {document_id}")
+                                    self.counters['skipped'] += 1
+                                    continue
+                            
+                            item = WriteoffItem(
+                                document_id=document_id,
+                                num=item_data.get('num'),
+                                product_id=product_id,
+                                product_size_id=item_data.get('productSizeId'),
+                                amount_factor=item_data.get('amountFactor', 1),
+                                amount=item_data.get('amount'),
+                                measure_unit_id=item_data.get('measureUnitId'),
+                                container_id=item_data.get('containerId'),
+                                cost=item_data.get('cost')
+                            )
+                            self.session.add(item)
+                            if existing_document:
+                                self.counters['items_updated'] += 1
+                            else:
+                                self.counters['items_created'] += 1
+                                
+                        except Exception as e:
+                            logger.error(f"Ошибка при создании позиции документа {document_id}: {e}")
+                            self.counters['errors'] += 1
+                            continue
+                    
+                    # Коммитим документ с позициями
+                    self.session.commit()
+                    
+                except Exception as e:
+                    self.counters['errors'] += 1
+                    logger.error(f"Ошибка при синхронизации документа {doc_data.get('id')}: {e}")
+                    self.session.rollback()
+            
+            # Записываем в лог
+            sync_log = SyncLog(
+                entity_type='writeoff_documents',
+                records_count=len(documents_data),
+                status='success',
+                sync_date=datetime.utcnow(),
+                details={
+                    'created': self.counters['created'],
+                    'updated': self.counters['updated'],
+                    'errors': self.counters['errors'],
+                    'items_created': self.counters['items_created'],
+                    'items_updated': self.counters['items_updated'],
+                    'skipped': self.counters['skipped'],
+                    'date_from': date_from,
+                    'date_to': date_to
+                }
+            )
+            self.session.add(sync_log)
+            self.session.commit()
+            
+            logger.info(f"Синхронизация документов списания завершена. "
+                       f"Документов - Создано: {self.counters['created']}, Обновлено: {self.counters['updated']}, "
+                       f"Позиций - Создано: {self.counters['items_created']}, Обновлено: {self.counters['items_updated']}, "
+                       f"Пропущено: {self.counters['skipped']}, Ошибок: {self.counters['errors']}")
+            return True
+            
+        except Exception as e:
+            self.session.rollback()
+            
+            try:
+                # Записываем ошибку в лог
+                sync_log = SyncLog(
+                    entity_type='writeoff_documents',
+                    records_count=0,
+                    status='error',
+                    error_message=str(e),
+                    sync_date=datetime.utcnow()
+                )
+                self.session.add(sync_log)
+                self.session.commit()
+            except Exception as log_error:
+                logger.error(f"Не удалось записать ошибку в лог: {log_error}")
+            
+            logger.error(f"Ошибка синхронизации документов списания: {e}")
             return False
 
 if __name__ == "__main__":

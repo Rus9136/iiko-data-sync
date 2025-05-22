@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 import json
 
-from src.models import Base, Product, Category, SyncLog, Store, Sale, Account
+from src.models import Base, Product, Category, SyncLog, Store, Sale, Account, WriteoffDocument, WriteoffItem
 from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
@@ -51,14 +51,24 @@ def index():
             total_accounts = 0
             active_accounts = 0
         
+        # Получаем статистику по документам списания
+        try:
+            total_writeoffs = session.query(func.count(WriteoffDocument.id)).scalar() or 0
+            total_writeoff_items = session.query(func.count(WriteoffItem.id)).scalar() or 0
+        except Exception as e:
+            app.logger.warning(f"Ошибка при получении статистики списаний: {e}")
+            total_writeoffs = 0
+            total_writeoff_items = 0
+        
         # Последняя синхронизация (берем самую позднюю)
         last_sync_products = session.query(SyncLog).filter(SyncLog.entity_type == 'products').order_by(SyncLog.sync_date.desc()).first()
         last_sync_stores = session.query(SyncLog).filter(SyncLog.entity_type == 'stores').order_by(SyncLog.sync_date.desc()).first()
         last_sync_sales = session.query(SyncLog).filter(SyncLog.entity_type == 'sales').order_by(SyncLog.sync_date.desc()).first()
         last_sync_accounts = session.query(SyncLog).filter(SyncLog.entity_type == 'accounts').order_by(SyncLog.sync_date.desc()).first()
+        last_sync_writeoffs = session.query(SyncLog).filter(SyncLog.entity_type == 'writeoffs').order_by(SyncLog.sync_date.desc()).first()
         
         # Находим самую позднюю синхронизацию среди всех типов
-        all_syncs = [s for s in [last_sync_products, last_sync_stores, last_sync_sales, last_sync_accounts] if s is not None]
+        all_syncs = [s for s in [last_sync_products, last_sync_stores, last_sync_sales, last_sync_accounts, last_sync_writeoffs] if s is not None]
         last_sync = max(all_syncs, key=lambda x: x.sync_date) if all_syncs else None
         
         return render_template('index.html', 
@@ -69,6 +79,8 @@ def index():
                              total_sales=total_sales,
                              total_accounts=total_accounts,
                              active_accounts=active_accounts,
+                             total_writeoffs=total_writeoffs,
+                             total_writeoff_items=total_writeoff_items,
                              last_sync=last_sync)
     finally:
         session.close()
@@ -255,6 +267,23 @@ def sync():
             synchronizer = DataSynchronizer()
             synchronizer.sync_accounts()
             message = 'Синхронизация счетов завершена успешно'
+        elif entity == 'writeoffs':
+            # Получаем параметры для синхронизации списаний
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            
+            if not start_date or not end_date:
+                return jsonify({'status': 'error', 'message': 'Для синхронизации списаний необходимо указать даты'}), 400
+            
+            synchronizer = DataSynchronizer()
+            synchronizer.sync_writeoff_documents(start_date, end_date)
+            message = 'Синхронизация документов списания завершена успешно'
+            
+            return jsonify({
+                'status': 'success', 
+                'message': message,
+                'stats': synchronizer.counters
+            })
         else:
             return jsonify({'status': 'error', 'message': f'Неизвестный тип сущности: {entity}'}), 400
             
@@ -594,6 +623,251 @@ def sales_sync():
     finally:
         session.close()
         
+@app.route('/writeoffs')
+def writeoffs():
+    """Список документов списания"""
+    session = Session()
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        # Фильтры
+        search = request.args.get('search', '')
+        date_from = request.args.get('date_from', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+        date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+        store_id = request.args.get('store_id', '')
+        account_id = request.args.get('account_id', '')
+        
+        # Преобразуем строки даты в объекты datetime
+        from_date = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+        to_date = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+        
+        # Если указана to_date, добавляем 1 день для включения всего дня
+        if to_date:
+            to_date = to_date + timedelta(days=1)
+        
+        # Базовый запрос с join для получения названий склада и счета
+        query = session.query(WriteoffDocument).join(Store, WriteoffDocument.store_id == Store.id, isouter=True).join(Account, WriteoffDocument.account_id == Account.id, isouter=True)
+        
+        # Применяем фильтры
+        if from_date and to_date:
+            query = query.filter(WriteoffDocument.date_incoming >= from_date, WriteoffDocument.date_incoming < to_date)
+        
+        if search:
+            query = query.filter(or_(
+                WriteoffDocument.document_number.ilike(f'%{search}%'),
+                WriteoffDocument.comment.ilike(f'%{search}%') if WriteoffDocument.comment.isnot(None) else False
+            ))
+        
+        if store_id:
+            query = query.filter(WriteoffDocument.store_id == store_id)
+            
+        if account_id:
+            query = query.filter(WriteoffDocument.account_id == account_id)
+        
+        # Подсчет общего количества и суммы
+        total_count = query.count()
+        
+        # Получаем статистику по позициям
+        items_subquery = session.query(
+            WriteoffItem.document_id,
+            func.count(WriteoffItem.id).label('items_count'),
+            func.sum(WriteoffItem.amount).label('total_amount')
+        ).group_by(WriteoffItem.document_id).subquery()
+        
+        # Пагинация с дополнительной информацией
+        documents = query.outerjoin(items_subquery, WriteoffDocument.id == items_subquery.c.document_id)\
+                         .add_columns(
+                             Store.name.label('store_name'),
+                             Account.name.label('account_name'),
+                             items_subquery.c.items_count,
+                             items_subquery.c.total_amount
+                         )\
+                         .order_by(WriteoffDocument.date_incoming.desc())\
+                         .offset((page - 1) * per_page)\
+                         .limit(per_page).all()
+        
+        # Получение списков для фильтров
+        stores = session.query(Store).order_by(Store.name).all()
+        accounts = session.query(Account).filter(Account.deleted == False).order_by(Account.name).all()
+        
+        return render_template('writeoffs.html', 
+                             documents=documents,
+                             page=page,
+                             total_pages=(total_count + per_page - 1) // per_page,
+                             total_count=total_count,
+                             search=search,
+                             date_from=date_from,
+                             date_to=date_to,
+                             store_id=store_id,
+                             account_id=account_id,
+                             stores=stores,
+                             accounts=accounts)
+    finally:
+        session.close()
+
+@app.route('/writeoff/<document_id>')
+def writeoff_detail(document_id):
+    """Детали документа списания"""
+    session = Session()
+    try:
+        # Получаем документ с дополнительной информацией
+        document = session.query(WriteoffDocument)\
+                         .join(Store, WriteoffDocument.store_id == Store.id, isouter=True)\
+                         .join(Account, WriteoffDocument.account_id == Account.id, isouter=True)\
+                         .add_columns(
+                             Store.name.label('store_name'),
+                             Account.name.label('account_name')
+                         )\
+                         .filter(WriteoffDocument.id == document_id).first()
+        
+        if not document:
+            return "Документ списания не найден", 404
+        
+        # Получаем позиции документа с информацией о продуктах
+        items = session.query(WriteoffItem)\
+                      .join(Product, WriteoffItem.product_id == Product.id, isouter=True)\
+                      .add_columns(
+                          Product.name.label('product_name'),
+                          Product.code.label('product_code')
+                      )\
+                      .filter(WriteoffItem.document_id == document_id)\
+                      .order_by(WriteoffItem.id).all()
+        
+        # Подсчитываем итоги
+        total_items = len(items)
+        total_amount = sum(item.WriteoffItem.amount or 0 for item in items)
+        
+        return render_template('writeoff_detail.html', 
+                             document=document,
+                             items=items,
+                             total_items=total_items,
+                             total_amount=total_amount)
+    finally:
+        session.close()
+
+@app.route('/writeoffs/sync', methods=['GET', 'POST'])
+def writeoffs_sync():
+    """Страница синхронизации документов списания"""
+    if request.method == 'POST':
+        try:
+            # Получаем параметры синхронизации
+            data = request.json
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
+            
+            if not start_date or not end_date:
+                return jsonify({
+                    'status': 'error', 
+                    'message': 'Необходимо указать даты начала и окончания'
+                }), 400
+            
+            # Запуск синхронизации документов списания
+            synchronizer = DataSynchronizer()
+            result = synchronizer.sync_writeoff_documents(start_date, end_date)
+            
+            return jsonify({
+                'status': 'success', 
+                'message': 'Синхронизация документов списания завершена успешно',
+                'stats': synchronizer.counters
+            })
+            
+        except Exception as e:
+            import traceback
+            error_message = str(e)
+            app.logger.error(f"Writeoffs sync error: {error_message}")
+            app.logger.error(traceback.format_exc())
+            return jsonify({'status': 'error', 'message': error_message}), 500
+    
+    # GET-запрос: отображение формы синхронизации
+    session = Session()
+    try:
+        # Устанавливаем диапазон дат по умолчанию (последний месяц)
+        default_end_date = datetime.now().strftime('%Y-%m-%d')
+        default_start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Статистика для страницы
+        total_documents = session.query(func.count(WriteoffDocument.id)).scalar() or 0
+        total_items = session.query(func.count(WriteoffItem.id)).scalar() or 0
+        
+        # Последний документ
+        last_document = session.query(WriteoffDocument).order_by(WriteoffDocument.date_incoming.desc()).first()
+        last_document_date = last_document.date_incoming.strftime('%d.%m.%Y %H:%M') if last_document and last_document.date_incoming else None
+        
+        # Последняя синхронизация
+        last_sync = session.query(SyncLog).filter(SyncLog.entity_type == 'writeoffs').order_by(SyncLog.sync_date.desc()).first()
+        
+        return render_template('writeoffs_sync.html',
+                             default_start_date=default_start_date,
+                             default_end_date=default_end_date,
+                             total_documents=total_documents,
+                             total_items=total_items,
+                             last_document_date=last_document_date,
+                             last_sync=last_sync)
+    finally:
+        session.close()
+
+@app.route('/writeoffs/delete', methods=['POST'])
+def writeoffs_delete():
+    """Удаление документов списания за период"""
+    try:
+        data = request.json
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({
+                'status': 'error', 
+                'message': 'Необходимо указать даты начала и окончания'
+            }), 400
+        
+        session = Session()
+        try:
+            # Преобразуем строки даты в объекты datetime
+            from_date = datetime.strptime(start_date, '%Y-%m-%d')
+            to_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            
+            # Получаем документы для удаления
+            documents_to_delete = session.query(WriteoffDocument)\
+                                        .filter(WriteoffDocument.date_incoming >= from_date, 
+                                               WriteoffDocument.date_incoming < to_date).all()
+            
+            deleted_docs = len(documents_to_delete)
+            deleted_items = 0
+            
+            # Удаляем документы и их позиции
+            for document in documents_to_delete:
+                # Сначала удаляем позиции
+                items = session.query(WriteoffItem).filter(WriteoffItem.document_id == document.id).all()
+                deleted_items += len(items)
+                for item in items:
+                    session.delete(item)
+                
+                # Затем удаляем документ
+                session.delete(document)
+            
+            session.commit()
+            
+            return jsonify({
+                'status': 'success', 
+                'message': f'Удалено {deleted_docs} документов и {deleted_items} позиций',
+                'deleted_documents': deleted_docs,
+                'deleted_items': deleted_items
+            })
+            
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+            
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Writeoffs delete error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
+
 @app.route('/sales/report')
 def sales_report():
     """Отчет по продажам с группировкой"""

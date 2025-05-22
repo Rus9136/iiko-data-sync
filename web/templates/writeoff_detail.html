@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Документ списания {{ document.WriteoffDocument.document_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Навигация -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('writeoffs') }}">Документы списания</a></li>
+            <li class="breadcrumb-item active">{{ document.WriteoffDocument.document_number or 'Без номера' }}</li>
+        </ol>
+    </nav>
+
+    <!-- Заголовок -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Документ списания: {{ document.WriteoffDocument.document_number or 'Без номера' }}</h1>
+        </div>
+        <div class="col-auto">
+            <a href="{{ url_for('writeoffs') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Назад к списку
+            </a>
+        </div>
+    </div>
+
+    <!-- Информация о документе -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Основная информация</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th style="width: 40%;">ID документа:</th>
+                            <td><code>{{ document.WriteoffDocument.id }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Номер документа:</th>
+                            <td>{{ document.WriteoffDocument.document_number or 'Не указан' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Дата поступления:</th>
+                            <td>
+                                {% if document.WriteoffDocument.date_incoming %}
+                                {{ document.WriteoffDocument.date_incoming.strftime('%d.%m.%Y %H:%M:%S') }}
+                                {% else %}
+                                <span class="text-muted">Не указана</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Склад:</th>
+                            <td>{{ document.store_name or 'Неизвестен' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Счет:</th>
+                            <td>{{ document.account_name or 'Неизвестен' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Статус:</th>
+                            <td>
+                                {% if document.WriteoffDocument.status %}
+                                <span class="badge bg-{% if document.WriteoffDocument.status.name == 'NEW' %}primary{% elif document.WriteoffDocument.status.name == 'PROCESSED' %}success{% else %}secondary{% endif %}">
+                                    {{ document.WriteoffDocument.status.name }}
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Неизвестен</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if document.WriteoffDocument.comment %}
+                        <tr>
+                            <th>Комментарий:</th>
+                            <td>{{ document.WriteoffDocument.comment }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Статистика</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h3 class="text-primary">{{ total_items }}</h3>
+                                <small class="text-muted">Позиций в документе</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h3 class="text-success">{{ "%.2f"|format(total_amount) }}</h3>
+                            <small class="text-muted">Общее количество</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Позиции документа -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Позиции документа ({{ total_items }})</h5>
+        </div>
+        <div class="card-body">
+            {% if items %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Продукт</th>
+                            <th>Код</th>
+                            <th>Количество</th>
+                            <th>ID продукта</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                {% if item.product_name %}
+                                <a href="{{ url_for('product_detail', product_id=item.WriteoffItem.product_id) }}" 
+                                   class="text-decoration-none">
+                                    {{ item.product_name }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">Продукт не найден</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.product_code %}
+                                <code>{{ item.product_code }}</code>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-bold">{{ "%.2f"|format(item.WriteoffItem.amount or 0) }}</span>
+                            </td>
+                            <td>
+                                <code class="small">{{ item.WriteoffItem.product_id }}</code>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-info">
+                            <th colspan="3">Итого:</th>
+                            <th>{{ "%.2f"|format(total_amount) }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d;"></i>
+                <p class="text-muted mt-2">В документе нет позиций</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

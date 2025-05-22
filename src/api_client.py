@@ -23,7 +23,7 @@ class IikoApiClient:
         return self.token
     
     def get_products(self, include_deleted: bool = False) -> list:
-        """Получение списка продуктов с поддержкой пагинации"""
+        """Получение списка продуктов (пагинация в IIKO API не работает корректно)"""
         import logging
         logger = logging.getLogger(__name__)
         
@@ -35,61 +35,31 @@ class IikoApiClient:
             'Cookie': f'key={self.token}'
         }
         
-        all_products = []
-        page = 0
-        page_size = 4000  # Оптимальный размер страницы
-        has_more = True
-        total_fetched = 0
+        params = {
+            'includeDeleted': str(include_deleted).lower()
+        }
         
-        logger.info(f"Начинаем загрузку продуктов с пагинацией (размер страницы: {page_size})...")
+        logger.info("Загрузка всех продуктов из API...")
         
-        while has_more:
-            params = {
-                'includeDeleted': str(include_deleted).lower(),
-                'pageSize': page_size,
-                'page': page
-            }
-            
-            logger.info(f"Загрузка страницы {page}...")
-            
-            response = requests.get(products_url, params=params, headers=headers)
-            response_status = response.status_code
-            logger.info(f"Получен ответ от API со статусом: {response_status}")
-            
-            response.raise_for_status()
-            
-            products_page = response.json()
-            if not products_page:
-                logger.info(f"Получена пустая страница {page}, завершаем загрузку")
-                break
-                
-            total_fetched += len(products_page)
-            logger.info(f"Загружено {len(products_page)} продуктов со страницы {page}, всего: {total_fetched}")
-            
-            # Сохраняем подробные данные о каждой странице
-            logger.info(f"Данные страницы {page}: первый ID={products_page[0]['id'] if products_page else 'Н/Д'}, "
-                         f"последний ID={products_page[-1]['id'] if products_page else 'Н/Д'}")
-            
-            # Расширяем общий список
-            all_products.extend(products_page)
-            
-            # Проверяем, есть ли еще страницы
-            if len(products_page) < page_size:
-                logger.info(f"Достигнут конец списка продуктов (получено {len(products_page)} из {page_size})")
-                has_more = False
-            elif page >= 5:  # Ограничиваем максимальное количество страниц для тестирования
-                logger.info(f"Достигнут лимит пагинации (5 страниц)")
-                has_more = False
-            else:
-                page += 1
+        response = requests.get(products_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
         
-        # Проверка на различие между количеством страниц и общим количеством
-        if total_fetched != len(all_products):
-            logger.warning(f"ВНИМАНИЕ! Несоответствие в подсчете: всего загружено {total_fetched}, "
-                           f"но в списке {len(all_products)} продуктов")
+        response.raise_for_status()
         
-        logger.info(f"Загрузка завершена. Всего загружено {len(all_products)} продуктов")        
-        return all_products
+        products_data = response.json()
+        
+        # Проверяем уникальность ID
+        product_ids = [p.get('id') for p in products_data if p.get('id')]
+        unique_ids = set(product_ids)
+        
+        if len(product_ids) != len(unique_ids):
+            duplicates_count = len(product_ids) - len(unique_ids)
+            logger.warning(f"Обнаружены дубликаты ID: {duplicates_count} дубликатов из {len(product_ids)} товаров")
+        
+        logger.info(f"Загружено {len(products_data)} продуктов, уникальных ID: {len(unique_ids)}")
+        
+        return products_data
     
     def get_stores(self) -> list:
         """Получение списка складов"""
@@ -364,3 +334,49 @@ class IikoApiClient:
         logger.info(f"Загружено {len(accounts_data)} счетов")
         
         return accounts_data
+    
+    def get_writeoff_documents(self, date_from=None, date_to=None) -> list:
+        """Получение документов списания за период"""
+        import logging
+        from datetime import datetime, timedelta
+        
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+        
+        # Если даты не указаны, берем последний месяц
+        if not date_to:
+            date_to = datetime.now().strftime('%Y-%m-%d')
+        if not date_from:
+            date_from = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            
+        writeoff_url = f"{self.base_url}/v2/documents/writeoff"
+        headers = {
+            'Cookie': f'key={self.token}'
+        }
+        
+        params = {
+            'dateFrom': date_from,
+            'dateTo': date_to
+        }
+        
+        logger.info(f"Загрузка документов списания с {date_from} по {date_to}...")
+        
+        response = requests.get(writeoff_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        response_data = response.json()
+        
+        # Проверяем структуру ответа
+        if isinstance(response_data, dict) and 'response' in response_data:
+            documents_data = response_data['response']
+        else:
+            documents_data = response_data
+            
+        logger.info(f"Загружено {len(documents_data)} документов списания")
+        
+        return documents_data

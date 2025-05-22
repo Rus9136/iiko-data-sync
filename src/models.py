@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, UniqueConstraint, Enum, Float, Date
+from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, UniqueConstraint, Enum, Float, Date, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -22,6 +22,11 @@ class SaleStatus(enum.Enum):
     NOT_DELETED = "NOT_DELETED"
     DELETED = "DELETED"
 
+class WriteoffDocumentStatus(enum.Enum):
+    NEW = "NEW"
+    PROCESSED = "PROCESSED"
+    CANCELLED = "CANCELLED"
+
 class Product(Base):
     __tablename__ = 'products'
     
@@ -30,7 +35,7 @@ class Product(Base):
     name = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
     num = Column(String(50), nullable=True)
-    code = Column(String(50), unique=True, nullable=True)
+    code = Column(String(50), nullable=True)
     parent_id = Column(UUID(as_uuid=True), ForeignKey('products.id'), nullable=True)
     tax_category_id = Column(UUID(as_uuid=True), ForeignKey('categories.id'), nullable=True)
     category_id = Column(UUID(as_uuid=True), ForeignKey('categories.id'), nullable=True)
@@ -232,3 +237,52 @@ class SyncLog(Base):
     status = Column(String(20))
     error_message = Column(String, nullable=True)
     details = Column(JSON, nullable=True)
+
+class WriteoffDocument(Base):
+    __tablename__ = 'writeoff_documents'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    date_incoming = Column(DateTime, nullable=False)
+    document_number = Column(String(50), nullable=False)
+    status = Column(Enum(WriteoffDocumentStatus), nullable=False)
+    conception_id = Column(UUID(as_uuid=True), nullable=True)
+    comment = Column(String, nullable=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey('stores.id'), nullable=True)
+    account_id = Column(UUID(as_uuid=True), ForeignKey('accounts.id'), nullable=True)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    store = relationship("Store", foreign_keys=[store_id])
+    account = relationship("Account", foreign_keys=[account_id])
+    items = relationship("WriteoffItem", back_populates="document", cascade="all, delete-orphan")
+
+class WriteoffItem(Base):
+    __tablename__ = 'writeoff_items'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    document_id = Column(UUID(as_uuid=True), ForeignKey('writeoff_documents.id'), nullable=False)
+    num = Column(Integer, nullable=False)
+    product_id = Column(UUID(as_uuid=True), ForeignKey('products.id'), nullable=False)
+    product_size_id = Column(UUID(as_uuid=True), nullable=True)
+    amount_factor = Column(Numeric(10, 3), nullable=False, default=1)
+    amount = Column(Numeric(10, 3), nullable=False)
+    measure_unit_id = Column(UUID(as_uuid=True), nullable=True)
+    container_id = Column(UUID(as_uuid=True), nullable=True)
+    cost = Column(Numeric(10, 2), nullable=True)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Отношения
+    document = relationship("WriteoffDocument", back_populates="items")
+    product = relationship("Product", foreign_keys=[product_id])
+    
+    # Уникальное ограничение для предотвращения дублирования строк в документе
+    __table_args__ = (
+        UniqueConstraint('document_id', 'num', name='unique_writeoff_item_num'),
+    )
