@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Счет: {{ account.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('accounts') }}">Счета</a></li>
+                    <li class="breadcrumb-item active">{{ account.name }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">
+                    {{ account.name }}
+                    {% if account.deleted %}
+                        <span class="badge bg-danger ms-2">Удален</span>
+                    {% endif %}
+                </h1>
+                <a href="{{ url_for('accounts') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Назад к списку
+                </a>
+            </div>
+            
+            <!-- Основная информация -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Основная информация</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-4">ID:</dt>
+                                        <dd class="col-sm-8"><code>{{ account.id }}</code></dd>
+                                        
+                                        <dt class="col-sm-4">Название:</dt>
+                                        <dd class="col-sm-8">{{ account.name }}</dd>
+                                        
+                                        <dt class="col-sm-4">Код:</dt>
+                                        <dd class="col-sm-8">
+                                            {% if account.code %}
+                                                <code>{{ account.code }}</code>
+                                            {% else %}
+                                                <em class="text-muted">Не указан</em>
+                                            {% endif %}
+                                        </dd>
+                                        
+                                        <dt class="col-sm-4">Тип:</dt>
+                                        <dd class="col-sm-8">
+                                            {% if account.type %}
+                                                <span class="badge bg-secondary">{{ account.type }}</span>
+                                            {% else %}
+                                                <em class="text-muted">Не указан</em>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <dl class="row">
+                                        <dt class="col-sm-6">Системный:</dt>
+                                        <dd class="col-sm-6">
+                                            {% if account.system %}
+                                                <span class="badge bg-warning">Да</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Нет</span>
+                                            {% endif %}
+                                        </dd>
+                                        
+                                        <dt class="col-sm-6">Польз. транзакции:</dt>
+                                        <dd class="col-sm-6">
+                                            {% if account.custom_transactions_allowed %}
+                                                <span class="badge bg-success">Разрешены</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Запрещены</span>
+                                            {% endif %}
+                                        </dd>
+                                        
+                                        <dt class="col-sm-6">Статус:</dt>
+                                        <dd class="col-sm-6">
+                                            {% if account.deleted %}
+                                                <span class="badge bg-danger">Удален</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Активен</span>
+                                            {% endif %}
+                                        </dd>
+                                        
+                                        <dt class="col-sm-6">Корпоративный ID:</dt>
+                                        <dd class="col-sm-6">
+                                            {% if account.parent_corporate_id %}
+                                                <code>{{ account.parent_corporate_id }}</code>
+                                            {% else %}
+                                                <em class="text-muted">Не указан</em>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <!-- Информация о синхронизации -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Синхронизация</h6>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row">
+                                <dt class="col-6">Создан:</dt>
+                                <dd class="col-6 small">
+                                    {% if account.created_at %}
+                                        {{ account.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                        <em class="text-muted">Неизвестно</em>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-6">Обновлен:</dt>
+                                <dd class="col-6 small">
+                                    {% if account.updated_at %}
+                                        {{ account.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                        <em class="text-muted">Никогда</em>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-6">Синхронизация:</dt>
+                                <dd class="col-6 small">
+                                    {% if account.synced_at %}
+                                        {{ account.synced_at.strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                        <em class="text-muted">Никогда</em>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Иерархия -->
+            <div class="row mt-4">
+                {% if parent %}
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Родительский счет</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-level-up-alt text-muted me-2"></i>
+                                <div>
+                                    <a href="{{ url_for('account_detail', account_id=parent.id) }}" 
+                                       class="text-decoration-none">
+                                        {{ parent.name }}
+                                    </a>
+                                    {% if parent.code %}
+                                        <br><small class="text-muted">Код: {{ parent.code }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if children %}
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">Дочерние счета ({{ children|length }})</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                {% for child in children[:5] %}
+                                <div class="list-group-item border-0 px-0 py-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-level-down-alt text-muted me-2"></i>
+                                        <div>
+                                            <a href="{{ url_for('account_detail', account_id=child.id) }}" 
+                                               class="text-decoration-none">
+                                                {{ child.name }}
+                                            </a>
+                                            {% if child.code %}
+                                                <br><small class="text-muted">Код: {{ child.code }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                
+                                {% if children|length > 5 %}
+                                <div class="list-group-item border-0 px-0 py-2">
+                                    <small class="text-muted">
+                                        ... и еще {{ children|length - 5 }} счетов
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

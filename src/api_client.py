@@ -334,3 +334,33 @@ class IikoApiClient:
         logger.info(f"Загружено {len(formatted_sales)} записей о продажах")
         logger.info(f"Статистика фильтрации: пропущено отмененных чеков: {skipped_storned}, пропущено возвратов: {skipped_returns}")
         return formatted_sales
+    
+    def get_accounts(self, include_deleted: bool = False) -> list:
+        """Получение списка счетов"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+            
+        accounts_url = f"{self.base_url}/v2/entities/accounts/list"
+        headers = {
+            'Cookie': f'key={self.token}'
+        }
+        
+        params = {
+            'includeDeleted': str(include_deleted).lower()
+        }
+        
+        logger.info(f"Загрузка списка счетов...")
+        
+        response = requests.get(accounts_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        accounts_data = response.json()
+        logger.info(f"Загружено {len(accounts_data)} счетов")
+        
+        return accounts_data

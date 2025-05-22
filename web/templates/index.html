@@ -61,6 +61,18 @@
                         </svg>
                         Отчет по продажам
                     </button>
+                    <button class="action-btn primary" onclick="syncData('accounts')">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Получить счета
+                    </button>
+                    <button class="action-btn secondary" onclick="showAccountsList()">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Список счетов
+                    </button>
                 </div>
             </div>
 
@@ -102,6 +114,14 @@
                     <div class="stat-card">
                         <div class="stat-value">{{ total_sales|default(0) }}</div>
                         <div class="stat-label">Продаж в базе</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ total_accounts|default(0) }}</div>
+                        <div class="stat-label">Счетов в базе</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{{ active_accounts|default(0) }}</div>
+                        <div class="stat-label">Активных счетов</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-value">
@@ -189,6 +209,11 @@
         // Показать отчет по продажам
         function showSalesReport() {
             window.location.href = '/sales/report';
+        }
+        
+        // Показать список счетов
+        function showAccountsList() {
+            window.location.href = '/accounts';
         }
     </script>
 </body>

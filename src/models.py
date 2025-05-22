@@ -201,6 +201,27 @@ class Sale(Base):
         UniqueConstraint('order_num', 'fiscal_cheque_number', 'dish_code', 'cash_register_number', name='unique_sale_item'),
     )
 
+class Account(Base):
+    __tablename__ = 'accounts'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    deleted = Column(Boolean, default=False, nullable=False)
+    code = Column(String(50), nullable=True, unique=True)
+    name = Column(String(255), nullable=False)
+    account_parent_id = Column(UUID(as_uuid=True), ForeignKey('accounts.id'), nullable=True)
+    parent_corporate_id = Column(UUID(as_uuid=True), nullable=True)
+    type = Column(String(100), nullable=True)
+    system = Column(Boolean, default=False, nullable=False)
+    custom_transactions_allowed = Column(Boolean, default=True, nullable=False)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    parent = relationship("Account", remote_side=[id], backref="children")
+
 class SyncLog(Base):
     __tablename__ = 'sync_log'
     

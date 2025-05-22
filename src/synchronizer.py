@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import json
 from datetime import datetime
-from src.models import Base, Product, ProductModifier, Category, SyncLog
+from src.models import Base, Product, ProductModifier, Category, SyncLog, Account
 from src.api_client import IikoApiClient
 from config.config import DATABASE_CONFIG
 import logging
@@ -479,6 +479,145 @@ class DataSynchronizer:
             logger.error(f"Ошибка при синхронизации модификаторов для продукта {product_id}: {e}")
             self.session.rollback()
             raise
+    
+    def sync_accounts(self):
+        """Синхронизация счетов из API в БД с учетом иерархии"""
+        try:
+            logger.info("Начинаем синхронизацию счетов...")
+            self.counters = {'created': 0, 'updated': 0, 'errors': 0, 'skipped': 0}
+            
+            # Получаем данные из API
+            accounts_data = self.api_client.get_accounts()
+            logger.info(f"Получено {len(accounts_data)} счетов из API")
+            
+            # Получаем список уже имеющихся id счетов в БД для оптимизации
+            existing_account_ids = set()
+            try:
+                for row in self.session.query(Account.id).all():
+                    existing_account_ids.add(str(row[0]))
+                logger.info(f"В базе данных уже есть {len(existing_account_ids)} счетов")
+            except Exception as e:
+                logger.error(f"Ошибка при получении существующих ID счетов: {e}")
+                existing_account_ids = set()
+            
+            # Сортируем счета для правильного порядка создания (сначала родительские)
+            # Создаем словарь для быстрого поиска
+            accounts_dict = {acc['id']: acc for acc in accounts_data}
+            
+            # Определяем порядок обработки (сначала корневые счета, потом дочерние)
+            processed_accounts = set()
+            accounts_to_process = []
+            
+            def add_account_hierarchy(account_data):
+                if account_data['id'] in processed_accounts:
+                    return
+                
+                parent_id = account_data.get('accountParentId')
+                if parent_id and parent_id in accounts_dict and parent_id not in processed_accounts:
+                    # Сначала обрабатываем родительский счет
+                    add_account_hierarchy(accounts_dict[parent_id])
+                
+                accounts_to_process.append(account_data)
+                processed_accounts.add(account_data['id'])
+            
+            # Добавляем все счета в правильном порядке
+            for account_data in accounts_data:
+                add_account_hierarchy(account_data)
+            
+            logger.info(f"Обработка {len(accounts_to_process)} счетов в иерархическом порядке...")
+            
+            # Процесс обработки каждого счета из API в правильном порядке
+            for account_data in accounts_to_process:
+                try:
+                    account_id = account_data.get('id')
+                    
+                    # Обрабатываем код - преобразуем пустую строку в NULL
+                    code = account_data.get('code')
+                    if code == '':
+                        code = None
+                    
+                    # Проверяем, существует ли счет
+                    existing_account = self.session.query(Account).filter_by(id=account_id).first()
+                    
+                    if existing_account:
+                        # Обновляем существующий счет
+                        existing_account.deleted = account_data.get('deleted', False)
+                        existing_account.code = code
+                        existing_account.name = account_data.get('name', existing_account.name)
+                        existing_account.account_parent_id = account_data.get('accountParentId')
+                        existing_account.parent_corporate_id = account_data.get('parentCorporateId')
+                        existing_account.type = account_data.get('type')
+                        existing_account.system = account_data.get('system', False)
+                        existing_account.custom_transactions_allowed = account_data.get('customTransactionsAllowed', True)
+                        existing_account.updated_at = datetime.utcnow()
+                        existing_account.synced_at = datetime.utcnow()
+                        self.counters['updated'] += 1
+                    else:
+                        # Создаем новый счет
+                        account = Account(
+                            id=account_id,
+                            deleted=account_data.get('deleted', False),
+                            code=code,
+                            name=account_data.get('name', ''),
+                            account_parent_id=account_data.get('accountParentId'),
+                            parent_corporate_id=account_data.get('parentCorporateId'),
+                            type=account_data.get('type'),
+                            system=account_data.get('system', False),
+                            custom_transactions_allowed=account_data.get('customTransactionsAllowed', True),
+                            synced_at=datetime.utcnow()
+                        )
+                        self.session.add(account)
+                        self.counters['created'] += 1
+                    
+                    # Коммитим каждую запись для предотвращения конфликтов
+                    self.session.commit()
+                        
+                except Exception as e:
+                    self.counters['errors'] += 1
+                    logger.error(f"Ошибка при синхронизации счета {account_data.get('id')}: {e}")
+                    self.session.rollback()
+            
+            # Записываем в лог
+            sync_log = SyncLog(
+                entity_type='accounts',
+                records_count=len(accounts_data),
+                status='success',
+                sync_date=datetime.utcnow(),
+                details={
+                    'created': self.counters['created'],
+                    'updated': self.counters['updated'],
+                    'errors': self.counters['errors'],
+                    'skipped': self.counters['skipped']
+                }
+            )
+            self.session.add(sync_log)
+            self.session.commit()
+            
+            logger.info(f"Синхронизация счетов завершена. Создано: {self.counters['created']}, "
+                       f"Обновлено: {self.counters['updated']}, "
+                       f"Пропущено: {self.counters['skipped']}, "
+                       f"Ошибок: {self.counters['errors']}")
+            return True
+            
+        except Exception as e:
+            self.session.rollback()
+            
+            try:
+                # Записываем ошибку в лог
+                sync_log = SyncLog(
+                    entity_type='accounts',
+                    records_count=0,
+                    status='error',
+                    error_message=str(e),
+                    sync_date=datetime.utcnow()
+                )
+                self.session.add(sync_log)
+                self.session.commit()
+            except Exception as log_error:
+                logger.error(f"Не удалось записать ошибку в лог: {log_error}")
+            
+            logger.error(f"Ошибка синхронизации счетов: {e}")
+            return False
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

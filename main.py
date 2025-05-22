@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(description='IIKO Data Synchronizer')
-    parser.add_argument('--entity', choices=['products', 'stores', 'sales', 'all'], default='all',
+    parser.add_argument('--entity', choices=['products', 'stores', 'sales', 'accounts', 'all'], default='all',
                       help='Какие сущности синхронизировать')
     parser.add_argument('--start-date', help='Начальная дата для продаж в формате YYYY-MM-DD')
     parser.add_argument('--end-date', help='Конечная дата для продаж в формате YYYY-MM-DD')
@@ -59,6 +59,10 @@ def main():
                 logger.info("Синхронизация продаж...")
                 sales_synchronizer = SalesSynchronizer()
                 sales_synchronizer.sync_sales(args.start_date, args.end_date)
+            
+            if args.entity in ['accounts', 'all']:
+                logger.info("Синхронизация счетов...")
+                synchronizer.sync_accounts()
                 
             logger.info("Синхронизация завершена успешно")
             

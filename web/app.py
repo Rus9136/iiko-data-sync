@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 import json
 
-from src.models import Base, Product, Category, SyncLog, Store, Sale
+from src.models import Base, Product, Category, SyncLog, Store, Sale, Account
 from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
@@ -42,13 +42,23 @@ def index():
         # Получаем статистику по продажам
         total_sales = session.query(func.count(Sale.id)).scalar() or 0
         
+        # Получаем статистику по счетам
+        try:
+            total_accounts = session.query(func.count(Account.id)).scalar() or 0
+            active_accounts = session.query(func.count(Account.id)).filter(Account.deleted == False).scalar() or 0
+        except Exception as e:
+            app.logger.warning(f"Ошибка при получении статистики счетов: {e}")
+            total_accounts = 0
+            active_accounts = 0
+        
         # Последняя синхронизация (берем самую позднюю)
         last_sync_products = session.query(SyncLog).filter(SyncLog.entity_type == 'products').order_by(SyncLog.sync_date.desc()).first()
         last_sync_stores = session.query(SyncLog).filter(SyncLog.entity_type == 'stores').order_by(SyncLog.sync_date.desc()).first()
         last_sync_sales = session.query(SyncLog).filter(SyncLog.entity_type == 'sales').order_by(SyncLog.sync_date.desc()).first()
+        last_sync_accounts = session.query(SyncLog).filter(SyncLog.entity_type == 'accounts').order_by(SyncLog.sync_date.desc()).first()
         
         # Находим самую позднюю синхронизацию среди всех типов
-        all_syncs = [s for s in [last_sync_products, last_sync_stores, last_sync_sales] if s is not None]
+        all_syncs = [s for s in [last_sync_products, last_sync_stores, last_sync_sales, last_sync_accounts] if s is not None]
         last_sync = max(all_syncs, key=lambda x: x.sync_date) if all_syncs else None
         
         return render_template('index.html', 
@@ -57,6 +67,8 @@ def index():
                              deleted_products=deleted_products,
                              total_stores=total_stores,
                              total_sales=total_sales,
+                             total_accounts=total_accounts,
+                             active_accounts=active_accounts,
                              last_sync=last_sync)
     finally:
         session.close()
@@ -156,6 +168,58 @@ def stores():
     finally:
         session.close()
 
+@app.route('/accounts')
+def accounts():
+    """Список счетов"""
+    session = Session()
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        # Фильтры
+        search = request.args.get('search', '')
+        show_deleted = request.args.get('show_deleted', 'false') == 'true'
+        
+        # Базовый запрос
+        query = session.query(Account)
+        
+        # Применяем фильтры
+        if search:
+            query = query.filter(Account.name.ilike(f'%{search}%') | 
+                                (Account.code.isnot(None) & Account.code.ilike(f'%{search}%')))
+        
+        if not show_deleted:
+            query = query.filter(Account.deleted == False)
+        
+        # Пагинация
+        total = query.count()
+        accounts = query.order_by(Account.name).offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Подготовка данных для отображения
+        accounts_data = []
+        for account in accounts:
+            accounts_data.append({
+                'id': str(account.id),
+                'name': account.name,
+                'code': account.code,
+                'type': account.type,
+                'deleted': account.deleted,
+                'system': account.system,
+                'custom_transactions_allowed': account.custom_transactions_allowed,
+                'parent_id': str(account.account_parent_id) if account.account_parent_id else None,
+                'synced_at': account.synced_at.strftime('%Y-%m-%d %H:%M:%S') if account.synced_at else None
+            })
+        
+        return render_template('accounts.html', 
+                             accounts=accounts_data,
+                             page=page,
+                             total_pages=(total + per_page - 1) // per_page,
+                             total=total,
+                             search=search,
+                             show_deleted=show_deleted)
+    finally:
+        session.close()
+
 @app.route('/sync', methods=['POST'])
 def sync():
     """Запуск синхронизации"""
@@ -187,6 +251,10 @@ def sync():
                 'message': message,
                 'stats': sales_synchronizer.stats
             })
+        elif entity == 'accounts':
+            synchronizer = DataSynchronizer()
+            synchronizer.sync_accounts()
+            message = 'Синхронизация счетов завершена успешно'
         else:
             return jsonify({'status': 'error', 'message': f'Неизвестный тип сущности: {entity}'}), 400
             
@@ -244,6 +312,29 @@ def store_detail(store_id):
         
         return render_template('store_detail.html', 
                              store=store,
+                             parent=parent,
+                             children=children)
+    finally:
+        session.close()
+
+@app.route('/account/<account_id>')
+def account_detail(account_id):
+    """Детали счета"""
+    session = Session()
+    try:
+        account = session.query(Account).filter_by(id=account_id).first()
+        if not account:
+            return "Счет не найден", 404
+        
+        # Получаем связанные данные
+        parent = None
+        if account.account_parent_id:
+            parent = session.query(Account).filter_by(id=account.account_parent_id).first()
+        
+        children = session.query(Account).filter_by(account_parent_id=account_id).all()
+        
+        return render_template('account_detail.html', 
+                             account=account,
                              parent=parent,
                              children=children)
     finally:
