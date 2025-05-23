@@ -216,6 +216,18 @@ body {
     max-width: 100%;
 }
 
+/* Полноширинный контент без отступов */
+.content-container.full-width {
+    padding: 0;
+    max-width: 100%;
+}
+
+/* Полноэкранный режим для main-content */
+.main-content.full-screen {
+    margin-left: 0;
+    transition: margin-left var(--transition-base);
+}
+
 /* Хлебные крошки */
 .breadcrumb-nav {
     background: var(--card-bg);
@@ -865,6 +877,23 @@ body {
 /* Дополнительные премиум элементы */
 .highlight-row {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.03) 0%, rgba(239, 68, 68, 0.01) 100%);
+}
+
+/* Дополнительные стили для статистических карточек */
+.stat-card.warning::before {
+    background: linear-gradient(135deg, var(--warehouse-orange) 0%, var(--warehouse-orange-light) 100%);
+}
+
+.stat-card.info::before {
+    background: linear-gradient(135deg, var(--accounts-blue) 0%, var(--accounts-blue-light) 100%);
+}
+
+.stat-card.warning .stat-icon {
+    color: var(--warehouse-orange);
+}
+
+.stat-card.info .stat-icon {
+    color: var(--accounts-blue);
 }
 
 .container {

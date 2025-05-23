@@ -227,6 +227,24 @@ class Account(Base):
     # Отношения
     parent = relationship("Account", remote_side=[id], backref="children")
 
+class Department(Base):
+    __tablename__ = 'departments'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    parent_id = Column(UUID(as_uuid=True), ForeignKey('departments.id'), nullable=True)
+    code = Column(String(50), nullable=True)
+    name = Column(String(255), nullable=False)
+    type = Column(String(50), default='DEPARTMENT')
+    taxpayer_id_number = Column(String(50), nullable=True)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    parent = relationship("Department", remote_side=[id], backref="children")
+
 class SyncLog(Base):
     __tablename__ = 'sync_log'
     
@@ -285,4 +303,38 @@ class WriteoffItem(Base):
     # Уникальное ограничение для предотвращения дублирования строк в документе
     __table_args__ = (
         UniqueConstraint('document_id', 'num', name='unique_writeoff_item_num'),
+    )
+
+class Price(Base):
+    __tablename__ = 'prices'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    department_id = Column(UUID(as_uuid=True), ForeignKey('departments.id'), nullable=False)
+    product_id = Column(UUID(as_uuid=True), ForeignKey('products.id'), nullable=False)
+    product_size_id = Column(UUID(as_uuid=True), nullable=True)
+    price_type = Column(String(50), default='BASE')
+    date_from = Column(Date, nullable=False)
+    date_to = Column(Date, nullable=False)
+    price = Column(Numeric(10, 2), nullable=False)
+    tax_category_id = Column(UUID(as_uuid=True), nullable=True)
+    tax_category_enabled = Column(Boolean, default=False)
+    included = Column(Boolean, default=True)
+    dish_of_day = Column(Boolean, default=False)
+    flyer_program = Column(Boolean, default=False)
+    document_id = Column(UUID(as_uuid=True), nullable=True)
+    schedule = Column(String, nullable=True)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Отношения
+    department = relationship("Department", foreign_keys=[department_id])
+    product = relationship("Product", foreign_keys=[product_id])
+    
+    # Уникальное ограничение
+    __table_args__ = (
+        UniqueConstraint('department_id', 'product_id', 'product_size_id', 'price_type', 'date_from', 'date_to', 
+                        name='unique_price_entry'),
     )

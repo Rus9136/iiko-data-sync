@@ -28,13 +28,13 @@
         <tbody>
             {% for store in stores %}
             <tr>
-                <td>{{ store.code or '-' }}</td>
+                <td>{{ store.code|default('-', true) }}</td>
                 <td>
                     <a href="/store/{{ store.id }}">{{ store.name }}</a>
                 </td>
-                <td>{{ store.type or '-' }}</td>
+                <td>{{ store.type|default('-', true) }}</td>
                 <td>{{ store.parent_id[:8] if store.parent_id else '-' }}</td>
-                <td>{{ store.synced_at or '-' }}</td>
+                <td>{{ store.synced_at|default('-', true) }}</td>
             </tr>
             {% endfor %}
         </tbody>

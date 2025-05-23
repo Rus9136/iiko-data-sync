@@ -16,3 +16,6 @@ DATABASE_CONFIG = {
     'user': os.getenv('DB_USER', 'rus'),
     'password': os.getenv('DB_PASSWORD', '')
 }
+
+# Connection string for SQLAlchemy
+CONNECTION_STRING = f"postgresql://{DATABASE_CONFIG['user']}:{DATABASE_CONFIG['password']}@{DATABASE_CONFIG['host']}:{DATABASE_CONFIG['port']}/{DATABASE_CONFIG['database']}"

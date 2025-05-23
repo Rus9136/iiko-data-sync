@@ -1,0 +1,9 @@
+{% if request.headers.get('X-Requested-With') == 'XMLHttpRequest' %}
+    {% include 'department_detail_content.html' %}
+{% else %}
+    {% extends "base.html" %}
+    {% block title %}{{ department.name }} - IIKO Data Sync{% endblock %}
+    {% block content %}
+        {% include 'department_detail_content.html' %}
+    {% endblock %}
+{% endif %}

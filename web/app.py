@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 import json
 
-from src.models import Base, Product, Category, SyncLog, Store, Sale, Account, WriteoffDocument, WriteoffItem
+from src.models import Base, Product, Category, SyncLog, Store, Sale, Account, WriteoffDocument, WriteoffItem, Department, Price
 from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
@@ -944,6 +944,167 @@ def writeoffs_delete():
 def sales_report():
     """Отчет по продажам с группировкой"""
     return get_sales_report()
+
+@app.route('/departments')
+def departments():
+    """Список подразделений"""
+    session = Session()
+    try:
+        # Получаем все подразделения
+        all_departments = session.query(Department)\
+                                .order_by(Department.name)\
+                                .all()
+        
+        # Строим иерархию подразделений
+        departments_by_id = {dept.id: dept for dept in all_departments}
+        root_departments = []
+        
+        for dept in all_departments:
+            if dept.parent_id is None:
+                root_departments.append(dept)
+        
+        template = 'departments_content.html' if is_ajax_request() else 'departments.html'
+        return render_template(template, 
+                             departments=all_departments,
+                             root_departments=root_departments,
+                             departments_by_id=departments_by_id)
+    except Exception as e:
+        app.logger.error(f"Error loading departments: {str(e)}")
+        # Возвращаем пустой список при ошибке
+        template = 'departments_content.html' if is_ajax_request() else 'departments.html'
+        return render_template(template, 
+                             departments=[],
+                             root_departments=[],
+                             departments_by_id={})
+    finally:
+        session.close()
+
+@app.route('/department/<department_id>')
+def department_detail(department_id):
+    """Детали подразделения"""
+    session = Session()
+    try:
+        department = session.query(Department).filter_by(id=department_id).first()
+        if not department:
+            return "Подразделение не найдено", 404
+        
+        # Получаем связанные данные
+        parent = None
+        if department.parent_id:
+            parent = session.query(Department).filter_by(id=department.parent_id).first()
+        
+        children = session.query(Department).filter_by(parent_id=department_id).all()
+        
+        template = 'department_detail_content.html' if is_ajax_request() else 'department_detail.html'
+        return render_template(template, 
+                             department=department,
+                             parent=parent,
+                             children=children)
+    finally:
+        session.close()
+
+@app.route('/departments/sync', methods=['POST'])
+def sync_departments():
+    """Синхронизация подразделений"""
+    from src.api_client import IikoApiClient
+    from config.config import CONNECTION_STRING
+    from src.department_synchronizer import DepartmentSynchronizer
+    
+    try:
+        api_client = IikoApiClient()
+        synchronizer = DepartmentSynchronizer(api_client, CONNECTION_STRING)
+        
+        result = synchronizer.sync_departments()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Синхронизировано {result["total"]} подразделений. Создано: {result["created"]}, обновлено: {result["updated"]}'
+        })
+        
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Departments sync error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
+
+@app.route('/prices')
+def prices():
+    """Список цен с фильтрацией по подразделению"""
+    session = Session()
+    try:
+        department_id = request.args.get('department_id')
+        page = int(request.args.get('page', 1))
+        per_page = 50
+        
+        # Получаем все подразделения для фильтра
+        departments = session.query(Department).order_by(Department.name).all()
+        
+        # Базовый запрос
+        query = session.query(Price).join(Product).join(Department)
+        
+        # Фильтрация по подразделению
+        if department_id:
+            query = query.filter(Price.department_id == department_id)
+        
+        # Пагинация
+        total = query.count()
+        total_pages = (total + per_page - 1) // per_page
+        offset = (page - 1) * per_page
+        
+        prices = query.order_by(Department.name, Product.name, Price.date_from)\
+                     .offset(offset)\
+                     .limit(per_page)\
+                     .all()
+        
+        template = 'prices_content.html' if is_ajax_request() else 'prices.html'
+        return render_template(template,
+                             prices=prices,
+                             departments=departments,
+                             selected_department_id=department_id,
+                             page=page,
+                             total=total,
+                             total_pages=total_pages)
+    finally:
+        session.close()
+
+@app.route('/prices/sync', methods=['POST'])
+def sync_prices():
+    """Синхронизация цен для подразделения"""
+    from src.api_client import IikoApiClient
+    from config.config import CONNECTION_STRING
+    from src.price_synchronizer import PriceSynchronizer
+    
+    try:
+        data = request.get_json()
+        department_id = data.get('department_id')
+        date_from = data.get('date_from')
+        date_to = data.get('date_to')
+        price_type = data.get('price_type', 'BASE')
+        
+        if not department_id:
+            return jsonify({'status': 'error', 'message': 'Не указано подразделение'}), 400
+        
+        if not date_from or not date_to:
+            return jsonify({'status': 'error', 'message': 'Не указан период'}), 400
+        
+        api_client = IikoApiClient()
+        synchronizer = PriceSynchronizer(api_client, CONNECTION_STRING)
+        
+        result = synchronizer.sync_prices(department_id, date_from, date_to, price_type)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Синхронизировано цен для {result["department_name"]}: {result["created"]}. Пропущено: {result["skipped"]}',
+            'result': result
+        })
+        
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Prices sync error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
 
 
 

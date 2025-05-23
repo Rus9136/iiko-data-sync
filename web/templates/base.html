@@ -54,9 +54,21 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="departments">
+                        <i class="bi bi-diagram-3"></i>
+                        <span>Подразделения</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="#" class="nav-link" data-section="products">
                         <i class="bi bi-box-seam-fill"></i>
                         <span>Номенклатура</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="prices">
+                        <i class="bi bi-tags-fill"></i>
+                        <span>Цены</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -173,7 +185,9 @@
             const sectionNames = {
                 'dashboard': 'Панель управления',
                 'stores': 'Склады и магазины',
+                'departments': 'Подразделения',
                 'products': 'Номенклатура',
+                'prices': 'Цены',
                 'sales': 'Продажи',
                 'writeoffs': 'Документы списания',
                 'logs': 'История операций',
@@ -183,7 +197,9 @@
             const sectionIcons = {
                 'dashboard': 'bi-speedometer2',
                 'stores': 'bi-building',
+                'departments': 'bi-diagram-3',
                 'products': 'bi-box-seam-fill',
+                'prices': 'bi-tags-fill',
                 'sales': 'bi-cash-stack',
                 'writeoffs': 'bi-file-earmark-minus',
                 'logs': 'bi-journal-text',
@@ -232,8 +248,14 @@
                 case 'stores':
                     url = '/stores';
                     break;
+                case 'departments':
+                    url = '/departments';
+                    break;
                 case 'products':
                     url = '/products';
+                    break;
+                case 'prices':
+                    url = '/prices';
                     break;
                 case 'sales':
                     url = '/sales';
@@ -270,6 +292,22 @@
                 
                 // Add event listeners to internal links
                 setupInternalLinks();
+                
+                // Убедимся, что полноэкранный режим отключен для обычных разделов
+                const contentContainerEl = document.querySelector('.content-container');
+                const mainContentEl = document.querySelector('.main-content');
+                const sidebarEl = document.querySelector('.sidebar');
+                
+                if (contentContainerEl) {
+                    contentContainerEl.classList.remove('full-width');
+                }
+                if (mainContentEl) {
+                    mainContentEl.classList.remove('full-screen');
+                }
+                if (sidebarEl) {
+                    sidebarEl.style.display = '';
+                    sidebarEl.style.visibility = 'visible';
+                }
             })
             .catch(error => {
                 console.error('Error loading section:', error);
@@ -304,6 +342,9 @@
             const mainContent = document.querySelector('.content-container');
             mainContent.innerHTML = '<div class="loading-spinner"><i class="bi bi-hourglass-split"></i> Загрузка...</div>';
             
+            // Сохраняем текущий URL для истории навигации
+            const currentUrl = window.location.pathname;
+            
             fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -326,6 +367,30 @@
                 
                 // Update breadcrumbs for detail pages
                 updateDetailBreadcrumb(url);
+                
+                // Сохраняем информацию о навигации
+                if (url.includes('/product/') && currentUrl.includes('/writeoff/')) {
+                    sessionStorage.setItem('cameFromWriteoff', 'true');
+                    sessionStorage.setItem('writeoffUrl', currentUrl);
+                }
+                
+                // Специальная обработка для страниц товаров - отключаем полноэкранный режим
+                if (url.includes('/product/')) {
+                    const contentContainerEl = document.querySelector('.content-container');
+                    const mainContentEl = document.querySelector('.main-content');
+                    const sidebarEl = document.querySelector('.sidebar');
+                    
+                    if (contentContainerEl) {
+                        contentContainerEl.classList.remove('full-width');
+                    }
+                    if (mainContentEl) {
+                        mainContentEl.classList.remove('full-screen');
+                    }
+                    if (sidebarEl) {
+                        sidebarEl.style.display = '';
+                        sidebarEl.style.visibility = 'visible';
+                    }
+                }
             })
             .catch(error => {
                 console.error('Error loading page:', error);
@@ -344,7 +409,9 @@
             const sectionNames = {
                 'dashboard': 'Панель управления',
                 'stores': 'Склады и магазины',
+                'departments': 'Подразделения',
                 'products': 'Номенклатура',
+                'prices': 'Цены',
                 'sales': 'Продажи',
                 'writeoffs': 'Документы списания',
                 'logs': 'История операций',
@@ -354,14 +421,16 @@
             const sectionIcons = {
                 'dashboard': 'bi-speedometer2',
                 'stores': 'bi-building',
+                'departments': 'bi-diagram-3',
                 'products': 'bi-box-seam-fill',
+                'prices': 'bi-tags-fill',
                 'sales': 'bi-cash-stack',
                 'writeoffs': 'bi-file-earmark-minus',
                 'logs': 'bi-journal-text',
                 'upload': 'bi-cloud-arrow-up-fill'
             };
             
-            if (url.includes('/product/') || url.includes('/store/') || url.includes('/sale/') || url.includes('/writeoff/')) {
+            if (url.includes('/product/') || url.includes('/store/') || url.includes('/sale/') || url.includes('/writeoff/') || url.includes('/department/')) {
                 breadcrumbNav.style.display = 'block';
                 breadcrumb.innerHTML = `
                     <li class="breadcrumb-item">
@@ -450,6 +519,11 @@
         function goBackToStores() {
             setActiveSection('stores');
             loadSection('stores');
+        }
+        
+        function goBackToDepartments() {
+            setActiveSection('departments');
+            loadSection('departments');
         }
         
         function goBackToWriteoffs() {

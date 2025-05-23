@@ -3,27 +3,24 @@
 {% block title %}Чек {{ sale.fiscal_cheque_number or sale.order_num }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Навигация -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Главная</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('sales') }}">Продажи</a></li>
-            <li class="breadcrumb-item active">Чек {{ sale.fiscal_cheque_number or sale.order_num }}</li>
-        </ol>
-    </nav>
-
-    <!-- Заголовок -->
-    <div class="row mb-4">
-        <div class="col">
-            <h1>Чек № {{ sale.fiscal_cheque_number or sale.order_num }}</h1>
+<div class="sale-detail-page">
+    <!-- Навигация и заголовок с отступами -->
+    <div style="padding: 2.5rem 2.5rem 0;">
+        <div class="mb-4">
+            <button class="btn btn-outline-secondary" onclick="goBackToSales()">
+                <i class="bi bi-arrow-left"></i> Вернуться к продажам
+            </button>
         </div>
-        <div class="col-auto">
-            <a href="{{ url_for('sales') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Назад к списку
-            </a>
+
+        <!-- Заголовок -->
+        <div class="page-header mb-4">
+            <h1 class="page-title">Детали чека № {{ sale.fiscal_cheque_number or sale.order_num }}</h1>
+            <p class="page-subtitle">Полная информация о продаже</p>
         </div>
     </div>
+
+    <!-- Основной контент с отступами -->
+    <div style="padding: 0 2.5rem 2.5rem;">
 
     <!-- Информация о чеке -->
     <div class="row mb-4">
@@ -122,38 +119,27 @@
     </div>
 
     <!-- Статистика чека -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-primary">{{ order_items_count }}</h3>
-                    <p class="card-text">Позиций в чеке</p>
-                </div>
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-list-ol"></i>
             </div>
+            <div class="stat-value">{{ order_items_count }}</div>
+            <div class="stat-label">Позиций в чеке</div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-success">{{ "%.3f"|format(total_sum) }} ₸</h3>
-                    <p class="card-text">Общая сумма</p>
-                </div>
+        <div class="stat-card sales">
+            <div class="stat-icon">
+                <i class="bi bi-cash-stack"></i>
             </div>
+            <div class="stat-value">{{ "%.2f"|format(total_sum) }}</div>
+            <div class="stat-label">Общая сумма (₸)</div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-warning">{{ "%.3f"|format(total_discount) }} ₸</h3>
-                    <p class="card-text">Скидки</p>
-                </div>
+        <div class="stat-card warning">
+            <div class="stat-icon">
+                <i class="bi bi-percent"></i>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h3 class="text-info">{{ "%.3f"|format(total_increase) }} ₸</h3>
-                    <p class="card-text">Наценки</p>
-                </div>
-            </div>
+            <div class="stat-value">{{ "%.2f"|format(total_discount) }}</div>
+            <div class="stat-label">Скидки (₸)</div>
         </div>
     </div>
 
@@ -162,27 +148,26 @@
         <div class="card-header">
             <h5 class="card-title mb-0">Позиции чека ({{ order_items_count }})</h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             {% if related_sales %}
-            <div class="table-responsive">
-                <table class="table table-striped">
+            <div class="table-container">
+                <table class="products-table sales-table">
                     <thead>
                         <tr>
-                            <th>№</th>
-                            <th>Код товара</th>
+                            <th style="width: 50px;">№</th>
+                            <th style="width: 100px;">Код</th>
                             <th>Наименование</th>
-                            <th>Количество</th>
-                            <th>Ед. изм.</th>
-                            <th>Цена за ед.</th>
-                            <th>Скидка</th>
-                            <th>Возврат</th>
-                            <th>Сумма</th>
-                            <th>Наценка</th>
+                            <th style="width: 100px;">Кол-во</th>
+                            <th style="width: 80px;">Ед.</th>
+                            <th style="width: 120px;">Цена</th>
+                            <th style="width: 100px;">Скидка</th>
+                            <th style="width: 100px;">Возврат</th>
+                            <th style="width: 120px;">Сумма</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for related in related_sales %}
-                        <tr {% if related.id == sale.id %}class="table-warning"{% endif %}>
+                        <tr {% if related.id == sale.id %}class="highlight-row"{% endif %}>
                             <td>{{ loop.index }}</td>
                             <td>
                                 {% if related.dish_code %}
@@ -194,32 +179,30 @@
                             <td>
                                 <strong>{{ related.dish_name }}</strong>
                                 {% if related.id == sale.id %}
-                                <span class="badge bg-primary ms-2">Текущая позиция</span>
+                                <span class="badge success ms-2">Текущая</span>
                                 {% endif %}
                             </td>
-                            <td>{{ related.dish_amount }}</td>
+                            <td class="text-end">{{ related.dish_amount }}</td>
                             <td>{{ related.dish_measure_unit or '—' }}</td>
-                            <td>
+                            <td class="text-end">
                                 {% if related.dish_sum is not none and related.dish_amount is not none and related.dish_amount > 0 %}
-                                {{ "%.3f"|format(related.dish_sum / related.dish_amount) }} ₸
+                                {{ "%.2f"|format(related.dish_sum / related.dish_amount) }}
                                 {% else %}
-                                0.000 ₸
+                                0.00
                                 {% endif %}
                             </td>
-                            <td>{{ "%.3f"|format(related.dish_discount_sum or 0) }} ₸</td>
-                            <td>{{ "%.3f"|format(related.dish_return_sum or 0) }} ₸</td>
-                            <td class="fw-bold">{{ "%.3f"|format(related.dish_sum or 0) }} ₸</td>
-                            <td>{{ "%.3f"|format(related.increase_sum or 0) }} ₸</td>
+                            <td class="text-end">{{ "%.2f"|format(related.dish_discount_sum or 0) }}</td>
+                            <td class="text-end">{{ "%.2f"|format(related.dish_return_sum or 0) }}</td>
+                            <td class="text-end fw-bold">{{ "%.2f"|format(related.dish_sum or 0) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                     <tfoot>
-                        <tr class="table-info">
-                            <th colspan="6">Итого:</th>
-                            <th>{{ "%.3f"|format(total_discount) }} ₸</th>
-                            <th>{{ "%.3f"|format(total_return) }} ₸</th>
-                            <th>{{ "%.3f"|format(total_sum) }} ₸</th>
-                            <th>{{ "%.3f"|format(total_increase) }} ₸</th>
+                        <tr style="background: var(--bg-secondary); font-weight: 600;">
+                            <th colspan="6" class="text-end">Итого:</th>
+                            <th class="text-end">{{ "%.2f"|format(total_discount) }}</th>
+                            <th class="text-end">{{ "%.2f"|format(total_return) }}</th>
+                            <th class="text-end">{{ "%.2f"|format(total_sum) }}</th>
                         </tr>
                     </tfoot>
                 </table>
@@ -232,5 +215,62 @@
             {% endif %}
         </div>
     </div>
-</div>
+    </div> <!-- Закрываем div контента с отступами -->
+</div> <!-- Закрываем sale-detail-page -->
+
+<script>
+// Функция для включения полноэкранного режима
+function enableFullScreen() {
+    const contentContainer = document.querySelector('.content-container');
+    const mainContent = document.querySelector('.main-content');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (contentContainer) {
+        contentContainer.classList.add('full-width');
+    }
+    if (mainContent) {
+        mainContent.classList.add('full-screen');
+    }
+    if (sidebar) {
+        sidebar.style.display = 'none';
+    }
+}
+
+// Функция для выключения полноэкранного режима
+function disableFullScreen() {
+    const contentContainer = document.querySelector('.content-container');
+    const mainContent = document.querySelector('.main-content');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (contentContainer) {
+        contentContainer.classList.remove('full-width');
+    }
+    if (mainContent) {
+        mainContent.classList.remove('full-screen');
+    }
+    if (sidebar) {
+        sidebar.style.display = '';
+    }
+}
+
+// Включаем полноэкранный режим при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    enableFullScreen();
+});
+
+// Если страница загружена через AJAX
+enableFullScreen();
+
+function goBackToSales() {
+    // Выключаем полноэкранный режим при возврате
+    disableFullScreen();
+    
+    if (window.setActiveSection && window.loadSection) {
+        window.setActiveSection('sales');
+        window.loadSection('sales');
+    } else {
+        window.location.href = '/sales';
+    }
+}
+</script>
 {% endblock %}

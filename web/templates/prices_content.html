@@ -1,0 +1,374 @@
+<div class="products-header">
+    <div>
+        <h1>Цены товаров</h1>
+        <div class="sync-actions">
+            <button class="btn btn-primary" onclick="openPriceSyncModal()">
+                <i class="bi bi-arrow-clockwise"></i> Загрузить цены
+            </button>
+        </div>
+    </div>
+    <div class="filters-section">
+        <label for="departmentFilter">Подразделение:</label>
+        <select id="departmentFilter" class="form-select" onchange="filterByDepartment()">
+            <option value="">Все подразделения</option>
+            {% for dept in departments %}
+            <option value="{{ dept.id }}" {% if selected_department_id == dept.id|string %}selected{% endif %}>
+                {{ dept.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<div class="table-container">
+    {% if prices %}
+    <table class="products-table prices-table">
+        <thead>
+            <tr>
+                <th>Подразделение</th>
+                <th>Товар</th>
+                <th>Код товара</th>
+                <th>Тип цены</th>
+                <th>Цена</th>
+                <th>Действует с</th>
+                <th>Действует по</th>
+                <th>Активна</th>
+                <th>Синхронизировано</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for price in prices %}
+            <tr>
+                <td>{{ price.department.name }}</td>
+                <td>{{ price.product.name }}</td>
+                <td>{{ price.product.code or '-' }}</td>
+                <td>{{ price.price_type }}</td>
+                <td class="text-right">{{ "%.2f"|format(price.price) }}</td>
+                <td>{{ price.date_from.strftime('%d.%m.%Y') }}</td>
+                <td>{{ price.date_to.strftime('%d.%m.%Y') }}</td>
+                <td>
+                    {% if price.included %}
+                        <span class="badge badge-success">Да</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Нет</span>
+                    {% endif %}
+                </td>
+                <td>{{ price.synced_at.strftime('%d.%m.%Y %H:%M') if price.synced_at else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="bi bi-tags" style="font-size: 3rem; color: var(--text-secondary);"></i>
+        <p style="margin-top: 1rem; color: var(--text-secondary);">Нет данных о ценах</p>
+        <p style="color: var(--text-secondary);">Нажмите "Загрузить цены" для синхронизации</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Пагинация -->
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="/prices?page={{ page - 1 }}&department_id={{ selected_department_id or '' }}">← Назад</a>
+    {% endif %}
+    
+    {% set start_page = (1 if page - 2 < 1 else page - 2) %}
+    {% set end_page = (total_pages if page + 2 > total_pages else page + 2) %}
+    
+    {% if start_page > 1 %}
+        <a href="/prices?page=1&department_id={{ selected_department_id or '' }}">1</a>
+        {% if start_page > 2 %}
+            <span>...</span>
+        {% endif %}
+    {% endif %}
+    
+    {% for p in range(start_page, end_page + 1) %}
+        {% if p == page %}
+            <span class="active">{{ p }}</span>
+        {% else %}
+            <a href="/prices?page={{ p }}&department_id={{ selected_department_id or '' }}">{{ p }}</a>
+        {% endif %}
+    {% endfor %}
+    
+    {% if end_page < total_pages %}
+        {% if end_page < total_pages - 1 %}
+            <span>...</span>
+        {% endif %}
+        <a href="/prices?page={{ total_pages }}&department_id={{ selected_department_id or '' }}">{{ total_pages }}</a>
+    {% endif %}
+    
+    {% if page < total_pages %}
+        <a href="/prices?page={{ page + 1 }}&department_id={{ selected_department_id or '' }}">Вперед →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<div style="margin-top: 2rem; text-align: center; color: var(--text-secondary);">
+    Показано {{ prices|length }} из {{ total }} цен
+</div>
+
+<!-- Модальное окно для синхронизации цен -->
+<div id="priceSyncModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2>Загрузка цен</h2>
+            <span class="close" onclick="closePriceSyncModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="priceSyncForm">
+                <div class="form-group">
+                    <label for="syncDepartment">Подразделение *</label>
+                    <select id="syncDepartment" class="form-control" required>
+                        <option value="">Выберите подразделение</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="dateFrom">Дата начала *</label>
+                        <input type="date" id="dateFrom" class="form-control" required value="2025-01-01">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="dateTo">Дата окончания *</label>
+                        <input type="date" id="dateTo" class="form-control" required value="2025-12-31">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="priceType">Тип цен</label>
+                    <select id="priceType" class="form-control">
+                        <option value="BASE" selected>BASE - Базовые цены</option>
+                        <option value="DELIVERY">DELIVERY - Цены доставки</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closePriceSyncModal()">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Загрузить
+                    </button>
+                </div>
+            </form>
+            
+            <div id="syncStatus" style="display: none; margin-top: 1rem;">
+                <p>Идет загрузка цен...</p>
+                <div class="loader"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterByDepartment() {
+    const departmentId = document.getElementById('departmentFilter').value;
+    const url = departmentId ? `/prices?department_id=${departmentId}` : '/prices';
+    
+    // Проверяем, находимся ли мы в SPA контексте
+    if (window.loadSection && typeof loadSection === 'function') {
+        // Если да, используем AJAX загрузку
+        const mainContent = document.querySelector('.content-container');
+        if (mainContent) {
+            mainContent.innerHTML = '<div class="loading-spinner"><i class="bi bi-hourglass-split"></i> Загрузка...</div>';
+            
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                mainContent.innerHTML = html;
+                
+                // Выполняем скрипты в загруженном контенте
+                const scripts = mainContent.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    newScript.textContent = script.textContent;
+                    script.parentNode.replaceChild(newScript, script);
+                });
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки:', error);
+                mainContent.innerHTML = '<div class="alert alert-error">Ошибка загрузки данных</div>';
+            });
+        }
+    } else {
+        // Иначе делаем обычный переход
+        window.location.href = url;
+    }
+}
+
+function openPriceSyncModal() {
+    document.getElementById('priceSyncModal').style.display = 'block';
+    document.getElementById('priceSyncForm').style.display = 'block';
+    document.getElementById('syncStatus').style.display = 'none';
+}
+
+function closePriceSyncModal() {
+    document.getElementById('priceSyncModal').style.display = 'none';
+}
+
+// Обработчик формы синхронизации
+document.getElementById('priceSyncForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const departmentId = document.getElementById('syncDepartment').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    const priceType = document.getElementById('priceType').value;
+    
+    if (!departmentId) {
+        alert('Выберите подразделение');
+        return;
+    }
+    
+    // Скрываем форму, показываем статус
+    document.getElementById('priceSyncForm').style.display = 'none';
+    document.getElementById('syncStatus').style.display = 'block';
+    document.getElementById('syncStatus').innerHTML = '<p>Идет загрузка цен...</p><div class="loader"></div>';
+    
+    fetch('/prices/sync', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            department_id: departmentId,
+            date_from: dateFrom,
+            date_to: dateTo,
+            price_type: priceType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            document.getElementById('syncStatus').innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle"></i>
+                    <p>${data.message}</p>
+                    <button class="btn btn-primary" onclick="refreshPricesPage()">Обновить страницу</button>
+                </div>
+            `;
+        } else {
+            document.getElementById('syncStatus').innerHTML = `
+                <div class="alert alert-error">
+                    <i class="bi bi-x-circle"></i>
+                    <p>Ошибка: ${data.message}</p>
+                    <button class="btn btn-secondary" onclick="closePriceSyncModal()">Закрыть</button>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('syncStatus').innerHTML = `
+            <div class="alert alert-error">
+                <i class="bi bi-x-circle"></i>
+                <p>Ошибка сети: ${error.message}</p>
+                <button class="btn btn-secondary" onclick="closePriceSyncModal()">Закрыть</button>
+            </div>
+        `;
+    });
+});
+
+// Функция обновления страницы цен
+function refreshPricesPage() {
+    // Закрываем модальное окно
+    closePriceSyncModal();
+    
+    // Сохраняем текущий фильтр
+    const departmentId = document.getElementById('departmentFilter').value;
+    const url = departmentId ? `/prices?department_id=${departmentId}` : '/prices';
+    
+    // Проверяем, находимся ли мы в SPA контексте
+    if (window.loadSection && typeof loadSection === 'function') {
+        // Устанавливаем активную секцию
+        if (window.setActiveSection) {
+            window.setActiveSection('prices');
+        }
+        // Загружаем страницу цен через SPA
+        window.loadSection('prices');
+    } else {
+        // Иначе делаем обычный переход
+        window.location.href = url;
+    }
+}
+
+// Закрытие модального окна при клике вне его
+window.onclick = function(event) {
+    const modal = document.getElementById('priceSyncModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
+
+<style>
+.filters-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.form-select {
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text);
+    min-width: 200px;
+}
+
+.prices-table .text-right {
+    text-align: right;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    color: var(--text);
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.badge-success {
+    background: rgba(34, 197, 94, 0.2);
+    color: rgb(34, 197, 94);
+}
+
+.badge-secondary {
+    background: rgba(156, 163, 175, 0.2);
+    color: rgb(156, 163, 175);
+}
+</style>

@@ -1,0 +1,170 @@
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="page-title">{{ department.name }}</h1>
+            <p class="page-subtitle">Детали подразделения</p>
+        </div>
+        <button class="back-btn" onclick="goBackToDepartments()">
+            <i class="bi bi-arrow-left"></i> Назад к списку
+        </button>
+    </div>
+</div>
+
+<div class="row" style="display: flex; gap: 2rem;">
+    <div class="col-md-8" style="flex: 1;">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Основная информация</h3>
+            </div>
+            <div class="card-body">
+                <div class="detail-grid">
+                    <div class="detail-row">
+                        <div class="detail-label">ID</div>
+                        <div class="detail-value">{{ department.id }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Код</div>
+                        <div class="detail-value">{{ department.code or '-' }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Название</div>
+                        <div class="detail-value">{{ department.name }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Тип</div>
+                        <div class="detail-value">{{ department.type or 'DEPARTMENT' }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">ИНН</div>
+                        <div class="detail-value">{{ department.taxpayer_id_number or '-' }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Родительское подразделение</div>
+                        <div class="detail-value">
+                            {% if parent %}
+                                <a href="/department/{{ parent.id }}">{{ parent.name }}</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Дата создания</div>
+                        <div class="detail-value">
+                            {% if department.created_at %}
+                                {{ department.created_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Последнее обновление</div>
+                        <div class="detail-value">
+                            {% if department.updated_at %}
+                                {{ department.updated_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Синхронизировано</div>
+                        <div class="detail-value">
+                            {% if department.synced_at %}
+                                {{ department.synced_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if children %}
+    <div class="col-md-4" style="flex: 0 0 400px;">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Дочерние подразделения</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for child in children %}
+                    <a href="/department/{{ child.id }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ child.name }}</h6>
+                            <small class="badge secondary">{{ child.type or 'DEPARTMENT' }}</small>
+                        </div>
+                        {% if child.code %}
+                            <p class="mb-1">Код: {{ child.code }}</p>
+                        {% endif %}
+                        {% if child.taxpayer_id_number %}
+                            <p class="mb-1 text-muted">ИНН: {{ child.taxpayer_id_number }}</p>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+<style>
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.detail-value {
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.list-group-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+    transition: all var(--transition-base);
+}
+
+.list-group-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    transform: translateX(2px);
+}
+
+.list-group-item h6 {
+    color: var(--text);
+    margin-bottom: 0.5rem;
+}
+
+.list-group-item p {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+.badge.secondary {
+    background: var(--primary);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+</style>

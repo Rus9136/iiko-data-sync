@@ -335,6 +335,91 @@ class IikoApiClient:
         
         return accounts_data
     
+    def get_prices(self, department_id: str, date_from: str, date_to: str, price_type: str = 'BASE') -> dict:
+        """Получение цен для подразделения за период"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+            
+        prices_url = f"{self.base_url}/v2/price"
+        headers = {
+            'Cookie': f'key={self.token}'
+        }
+        
+        params = {
+            'dateFrom': date_from,
+            'dateTo': date_to,
+            'type': price_type,
+            'departmentId': department_id
+        }
+        
+        logger.info(f"Загрузка цен для подразделения {department_id} с {date_from} по {date_to}, тип: {price_type}")
+        
+        response = requests.get(prices_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get('result') != 'SUCCESS':
+            errors = data.get('errors', [])
+            error_msg = '; '.join(errors) if errors else 'Unknown error'
+            raise Exception(f"API error: {error_msg}")
+        
+        prices_data = data.get('response', [])
+        logger.info(f"Загружено {len(prices_data)} записей о ценах")
+        
+        return prices_data
+    
+    def get_departments(self) -> list:
+        """Получение списка подразделений из API"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+            
+        departments_url = f"{self.base_url}/corporation/departments"
+        headers = {
+            'Cookie': f'key={self.token}'
+        }
+        
+        params = {
+            'key': self.token,
+            'revisionFrom': '-1'
+        }
+        
+        logger.info(f"Загрузка списка подразделений...")
+        
+        response = requests.get(departments_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        # Парсим XML ответ
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(response.content)
+        
+        departments = []
+        for item in root.findall('.//corporateItemDto'):
+            department = {
+                'id': item.find('id').text if item.find('id') is not None else None,
+                'parentId': item.find('parentId').text if item.find('parentId') is not None else None,
+                'code': item.find('code').text if item.find('code') is not None else None,
+                'name': item.find('name').text if item.find('name') is not None else None,
+                'type': item.find('type').text if item.find('type') is not None else 'DEPARTMENT',
+                'taxpayerIdNumber': item.find('taxpayerIdNumber').text if item.find('taxpayerIdNumber') is not None else None
+            }
+            departments.append(department)
+        
+        logger.info(f"Загружено {len(departments)} подразделений")
+        return departments
+    
     def get_writeoff_documents(self, date_from=None, date_to=None) -> list:
         """Получение документов списания за период с фильтрацией по статусам NEW и PROCESSED"""
         import logging

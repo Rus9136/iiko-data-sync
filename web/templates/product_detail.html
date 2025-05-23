@@ -3,17 +3,17 @@
 {% block title %}{{ product.name }} - IIKO Data Sync{% endblock %}
 
 {% block content %}
-<div class="row mb-3">
-    <div class="col-md-12">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/">Главная</a></li>
-                <li class="breadcrumb-item"><a href="/products">Номенклатура</a></li>
-                <li class="breadcrumb-item active">{{ product.name }}</li>
-            </ol>
-        </nav>
+<div class="product-detail-wrapper">
+    <div class="mb-4">
+        <button class="btn btn-outline-secondary" onclick="goBackFromProduct()">
+            <i class="bi bi-arrow-left"></i> Назад
+        </button>
     </div>
-</div>
+    
+    <div class="page-header mb-4">
+        <h1 class="page-title">{{ product.name }}</h1>
+        <p class="page-subtitle">Детальная информация о товаре</p>
+    </div>
 
 <div class="row">
     <div class="col-md-8">
@@ -108,12 +108,115 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="/products" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left"></i> Вернуться к списку
-                    </a>
+                    <button class="btn btn-secondary" onclick="goBackFromProduct()">
+                        <i class="bi bi-arrow-left"></i> Вернуться назад
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
+</div> <!-- закрываем product-detail-wrapper -->
+
+<script>
+// Функция для отключения полноэкранного режима
+function disableFullScreenIfNeeded() {
+    // Поднимаемся вверх по DOM дереву, чтобы найти элементы в родительском документе
+    let currentDoc = document;
+    let parentWindow = window;
+    
+    // Если мы загружены через AJAX, нужно обратиться к родительскому документу
+    if (window.parent && window.parent.document) {
+        currentDoc = window.parent.document;
+        parentWindow = window.parent;
+    }
+    
+    const contentContainer = currentDoc.querySelector('.content-container');
+    const mainContent = currentDoc.querySelector('.main-content');
+    const sidebar = currentDoc.querySelector('.sidebar');
+    
+    // Убираем классы полноэкранного режима
+    if (contentContainer) {
+        contentContainer.classList.remove('full-width');
+    }
+    if (mainContent) {
+        mainContent.classList.remove('full-screen');
+    }
+    // Показываем боковую панель
+    if (sidebar) {
+        sidebar.style.display = '';
+        sidebar.style.visibility = 'visible';
+    }
+}
+
+// Отключаем полноэкранный режим с небольшой задержкой для AJAX
+setTimeout(function() {
+    disableFullScreenIfNeeded();
+}, 100);
+
+// Также пробуем отключить сразу
+disableFullScreenIfNeeded();
+
+// И при полной загрузке DOM
+document.addEventListener('DOMContentLoaded', function() {
+    disableFullScreenIfNeeded();
+});
+
+// Сохраняем информацию о том, откуда пришли
+if (!window.productNavigationHistory) {
+    window.productNavigationHistory = [];
+}
+
+// Функция возврата
+function goBackFromProduct() {
+    // Проверяем, пришли ли мы из документа списания
+    const cameFromWriteoff = sessionStorage.getItem('cameFromWriteoff');
+    const writeoffUrl = sessionStorage.getItem('writeoffUrl');
+    
+    if (cameFromWriteoff === 'true' && writeoffUrl) {
+        // Очищаем сохраненную информацию
+        sessionStorage.removeItem('cameFromWriteoff');
+        sessionStorage.removeItem('writeoffUrl');
+        
+        // Включаем полноэкранный режим перед загрузкой документа списания
+        const contentContainer = document.querySelector('.content-container');
+        const mainContent = document.querySelector('.main-content');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (contentContainer) {
+            contentContainer.classList.add('full-width');
+        }
+        if (mainContent) {
+            mainContent.classList.add('full-screen');
+        }
+        if (sidebar) {
+            sidebar.style.display = 'none';
+        }
+        
+        // Загружаем страницу списания через AJAX
+        if (window.loadInternalPage) {
+            window.loadInternalPage(writeoffUrl);
+        } else {
+            window.location.href = writeoffUrl;
+        }
+    }
+    // Если пришли через боковое меню из номенклатуры
+    else if (window.setActiveSection && window.loadSection) {
+        window.setActiveSection('products');
+        window.loadSection('products');
+    } 
+    // В остальных случаях
+    else {
+        window.location.href = '/products';
+    }
+}
+
+// Сохраняем текущий referrer для будущего использования
+document.addEventListener('DOMContentLoaded', function() {
+    const currentReferrer = document.referrer;
+    if (currentReferrer) {
+        sessionStorage.setItem('productReferrer', currentReferrer);
+    }
+});
+</script>
 {% endblock %}
