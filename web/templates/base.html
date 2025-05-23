@@ -560,6 +560,11 @@
             setActiveSection('writeoffs');
             loadSection('writeoffs');
         }
+        
+        // Alias function for loadInternalPage
+        function loadContent(url) {
+            return loadInternalPage(url);
+        }
     </script>
 </body>
 </html>
