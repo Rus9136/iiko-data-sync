@@ -2,24 +2,18 @@
     <div>
         <h1>Номенклатура</h1>
     </div>
-    <form class="search-bar" onsubmit="return handleSearchForm(event, '/products')">
-        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию или коду" class="search-input">
-        <button type="submit" class="search-btn">Поиск</button>
-    </form>
+    <div class="search-bar">
+        <input type="text" 
+               id="searchInput" 
+               name="search" 
+               value="{{ search }}" 
+               placeholder="Поиск по названию или коду" 
+               class="search-input"
+               autocomplete="off">
+        <i class="bi bi-search search-icon"></i>
+    </div>
 </div>
 
-<div class="filters-container">
-    <form class="filters-form" onsubmit="return handleSearchForm(event, '/products')">
-        <input type="hidden" name="search" value="{{ search }}">
-        <div class="checkbox-group">
-            <label>
-                <input type="checkbox" name="show_deleted" value="true" {% if show_deleted %}checked{% endif %}>
-                Показать удаленные
-            </label>
-        </div>
-        <button type="submit" class="action-btn secondary">Применить фильтры</button>
-    </form>
-</div>
 
 <div class="table-container">
     <table class="products-table">
@@ -58,14 +52,14 @@
 {% if total_pages > 1 %}
 <div class="pagination">
     {% if page > 1 %}
-        <a href="/products?page={{ page - 1 }}&search={{ search }}&show_deleted={{ show_deleted }}">← Назад</a>
+        <a href="/products?page={{ page - 1 }}&search={{ search }}">← Назад</a>
     {% endif %}
     
     {% set start_page = (1 if page - 2 < 1 else page - 2) %}
     {% set end_page = (total_pages if page + 2 > total_pages else page + 2) %}
     
     {% if start_page > 1 %}
-        <a href="/products?page=1&search={{ search }}&show_deleted={{ show_deleted }}">1</a>
+        <a href="/products?page=1&search={{ search }}">1</a>
         {% if start_page > 2 %}
             <span>...</span>
         {% endif %}
@@ -75,7 +69,7 @@
         {% if p == page %}
             <span class="active">{{ p }}</span>
         {% else %}
-            <a href="/products?page={{ p }}&search={{ search }}&show_deleted={{ show_deleted }}">{{ p }}</a>
+            <a href="/products?page={{ p }}&search={{ search }}">{{ p }}</a>
         {% endif %}
     {% endfor %}
     
@@ -83,11 +77,11 @@
         {% if end_page < total_pages - 1 %}
             <span>...</span>
         {% endif %}
-        <a href="/products?page={{ total_pages }}&search={{ search }}&show_deleted={{ show_deleted }}">{{ total_pages }}</a>
+        <a href="/products?page={{ total_pages }}&search={{ search }}">{{ total_pages }}</a>
     {% endif %}
     
     {% if page < total_pages %}
-        <a href="/products?page={{ page + 1 }}&search={{ search }}&show_deleted={{ show_deleted }}">Вперед →</a>
+        <a href="/products?page={{ page + 1 }}&search={{ search }}">Вперед →</a>
     {% endif %}
 </div>
 {% endif %}
@@ -95,3 +89,124 @@
 <div style="margin-top: 2rem; text-align: center; color: var(--text-secondary);">
     Показано {{ products|length }} из {{ total }} продуктов
 </div>
+
+<script>
+(function() {
+    // Инициализация поиска продуктов
+    const searchInput = document.getElementById('searchInput');
+    let searchTimeout;
+    
+    // Функция поиска
+    function performProductSearch() {
+        const searchValue = searchInput.value;
+        const url = `/products?search=${encodeURIComponent(searchValue)}`;
+        
+        console.log('Выполняется поиск:', searchValue);
+        console.log('URL:', url);
+        
+        // Показываем индикатор загрузки
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.style.opacity = '0.5';
+        }
+        
+        // Загружаем результаты через AJAX
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            console.log('Ответ получен:', response.status);
+            return response.text();
+        })
+        .then(html => {
+            console.log('HTML получен, длина:', html.length);
+            
+            // Создаем временный элемент для парсинга HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // Извлекаем только таблицу и пагинацию
+            const newTable = tempDiv.querySelector('.table-container');
+            const newPagination = tempDiv.querySelector('.pagination');
+            const newStats = tempDiv.querySelector('div[style*="margin-top: 2rem"]');
+            
+            // Обновляем существующие элементы
+            const currentTable = document.querySelector('.table-container');
+            const currentPaginationContainer = document.querySelector('.pagination')?.parentElement || currentTable.parentElement;
+            
+            if (currentTable && newTable) {
+                currentTable.innerHTML = newTable.innerHTML;
+            }
+            
+            // Удаляем старую пагинацию и статистику
+            const oldPagination = document.querySelector('.pagination');
+            const oldStats = document.querySelector('div[style*="margin-top: 2rem"]');
+            
+            if (oldPagination) oldPagination.remove();
+            if (oldStats) oldStats.remove();
+            
+            // Добавляем новую пагинацию и статистику
+            if (newPagination && currentPaginationContainer) {
+                currentPaginationContainer.appendChild(newPagination);
+            }
+            if (newStats && currentPaginationContainer) {
+                currentPaginationContainer.appendChild(newStats);
+            }
+            
+            // Сбрасываем прозрачность
+            if (currentTable) {
+                currentTable.style.opacity = '1';
+            }
+            
+            // Переустанавливаем обработчики для внутренних ссылок
+            if (window.setupInternalLinks) {
+                window.setupInternalLinks();
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка поиска:', error);
+            const tableContainer = document.querySelector('.table-container');
+            if (tableContainer) {
+                tableContainer.style.opacity = '1';
+            }
+        });
+    }
+    
+    // Обработчик ввода с задержкой
+    if (searchInput) {
+        console.log('Устанавливаем обработчики для поиска...');
+        
+        searchInput.addEventListener('input', function(e) {
+            console.log('Input event triggered, value:', e.target.value);
+            clearTimeout(searchTimeout);
+            
+            // Задержка 300мс перед поиском
+            searchTimeout = setTimeout(() => {
+                performProductSearch();
+            }, 300);
+        });
+        
+        // Обработчик Enter
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchTimeout);
+                performProductSearch();
+            }
+        });
+        
+        // Фокус на поле поиска
+        searchInput.focus();
+        
+        // Сохраняем позицию курсора
+        const len = searchInput.value.length;
+        searchInput.setSelectionRange(len, len);
+        
+        console.log('Обработчики поиска установлены успешно');
+    } else {
+        console.error('Поле поиска не найдено!');
+    }
+})();
+</script>
