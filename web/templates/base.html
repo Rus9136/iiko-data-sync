@@ -47,6 +47,18 @@
                         <span>Панель управления</span>
                     </a>
                 </li>
+                
+                <!-- Справочники -->
+                <li class="nav-section-header">
+                    <i class="bi bi-book"></i>
+                    <span>Справочники</span>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="products">
+                        <i class="bi bi-box-seam-fill"></i>
+                        <span>Номенклатура</span>
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-section="stores">
                         <i class="bi bi-building"></i>
@@ -59,22 +71,16 @@
                         <span>Подразделения</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" data-section="products">
-                        <i class="bi bi-box-seam-fill"></i>
-                        <span>Номенклатура</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#" class="nav-link" data-section="prices">
-                        <i class="bi bi-tags-fill"></i>
-                        <span>Цены</span>
-                    </a>
+                
+                <!-- Документы -->
+                <li class="nav-section-header">
+                    <i class="bi bi-file-text"></i>
+                    <span>Документы</span>
                 </li>
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-section="sales">
                         <i class="bi bi-cash-stack"></i>
-                        <span>Продажи</span>
+                        <span>Чеки продаж</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -84,15 +90,27 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link" data-section="logs">
-                        <i class="bi bi-journal-text"></i>
-                        <span>История операций</span>
+                    <a href="#" class="nav-link" data-section="prices">
+                        <i class="bi bi-tags-fill"></i>
+                        <span>Цены номенклатуры</span>
                     </a>
+                </li>
+                
+                <!-- Сервис -->
+                <li class="nav-section-header">
+                    <i class="bi bi-gear"></i>
+                    <span>Сервис</span>
                 </li>
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-section="upload">
                         <i class="bi bi-cloud-arrow-up-fill"></i>
                         <span>Загрузка данных</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>История операций</span>
                     </a>
                 </li>
             </ul>
@@ -186,6 +204,7 @@
                 'dashboard': 'Панель управления',
                 'stores': 'Склады и магазины',
                 'departments': 'Подразделения',
+                'accounts': 'Счета учета',
                 'products': 'Номенклатура',
                 'prices': 'Цены',
                 'sales': 'Продажи',
@@ -198,6 +217,7 @@
                 'dashboard': 'bi-speedometer2',
                 'stores': 'bi-building',
                 'departments': 'bi-diagram-3',
+                'accounts': 'bi-wallet2',
                 'products': 'bi-box-seam-fill',
                 'prices': 'bi-tags-fill',
                 'sales': 'bi-cash-stack',
@@ -250,6 +270,9 @@
                     break;
                 case 'departments':
                     url = '/departments';
+                    break;
+                case 'accounts':
+                    url = '/accounts';
                     break;
                 case 'products':
                     url = '/products';
@@ -410,6 +433,7 @@
                 'dashboard': 'Панель управления',
                 'stores': 'Склады и магазины',
                 'departments': 'Подразделения',
+                'accounts': 'Счета учета',
                 'products': 'Номенклатура',
                 'prices': 'Цены',
                 'sales': 'Продажи',
@@ -422,6 +446,7 @@
                 'dashboard': 'bi-speedometer2',
                 'stores': 'bi-building',
                 'departments': 'bi-diagram-3',
+                'accounts': 'bi-wallet2',
                 'products': 'bi-box-seam-fill',
                 'prices': 'bi-tags-fill',
                 'sales': 'bi-cash-stack',
@@ -430,7 +455,7 @@
                 'upload': 'bi-cloud-arrow-up-fill'
             };
             
-            if (url.includes('/product/') || url.includes('/store/') || url.includes('/sale/') || url.includes('/writeoff/') || url.includes('/department/')) {
+            if (url.includes('/product/') || url.includes('/store/') || url.includes('/sale/') || url.includes('/writeoff/') || url.includes('/department/') || url.includes('/account/')) {
                 breadcrumbNav.style.display = 'block';
                 breadcrumb.innerHTML = `
                     <li class="breadcrumb-item">
@@ -524,6 +549,11 @@
         function goBackToDepartments() {
             setActiveSection('departments');
             loadSection('departments');
+        }
+        
+        function goBackToAccounts() {
+            setActiveSection('accounts');
+            loadSection('accounts');
         }
         
         function goBackToWriteoffs() {
