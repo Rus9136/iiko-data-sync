@@ -179,10 +179,9 @@ def stores():
         # Базовый запрос
         query = session.query(Store)
         
-        # Применяем фильтры
+        # Применяем фильтры - только по названию
         if search:
-            query = query.filter(Store.name.ilike(f'%{search}%') | 
-                                (Store.code.isnot(None) & Store.code.ilike(f'%{search}%')))
+            query = query.filter(Store.name.ilike(f'%{search}%'))
         
         # Пагинация
         total = query.count()

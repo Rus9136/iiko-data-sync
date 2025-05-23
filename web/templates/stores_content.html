@@ -1,11 +1,17 @@
 <div class="products-header">
     <div>
-        <h1>Склады</h1>
+        <h1>Склады и магазины</h1>
     </div>
-    <form class="search-bar" onsubmit="return handleSearchForm(event, '/stores')">
-        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию или коду" class="search-input">
-        <button type="submit" class="search-btn">Поиск</button>
-    </form>
+    <div class="search-bar">
+        <input type="text" 
+               id="searchInput" 
+               name="search" 
+               value="{{ search }}" 
+               placeholder="Поиск по названию склада" 
+               class="search-input"
+               autocomplete="off">
+        <i class="bi bi-search search-icon"></i>
+    </div>
 </div>
 
 <div class="table-container">
@@ -76,3 +82,113 @@
 <div style="margin-top: 2rem; text-align: center; color: var(--text-secondary);">
     Показано {{ stores|length }} из {{ total }} складов
 </div>
+
+<script>
+(function() {
+    // Инициализация поиска складов
+    const searchInput = document.getElementById('searchInput');
+    let searchTimeout;
+    
+    // Функция поиска
+    function performStoreSearch() {
+        const searchValue = searchInput.value;
+        const url = `/stores?search=${encodeURIComponent(searchValue)}`;
+        
+        console.log('Выполняется поиск складов:', searchValue);
+        
+        // Показываем индикатор загрузки
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.style.opacity = '0.5';
+        }
+        
+        // Загружаем результаты через AJAX
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Создаем временный элемент для парсинга HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // Извлекаем только таблицу и пагинацию
+            const newTable = tempDiv.querySelector('.table-container');
+            const newPagination = tempDiv.querySelector('.pagination');
+            const newStats = tempDiv.querySelector('div[style*="margin-top: 2rem"]');
+            
+            // Обновляем существующие элементы
+            const currentTable = document.querySelector('.table-container');
+            const currentPaginationContainer = document.querySelector('.pagination')?.parentElement || currentTable.parentElement;
+            
+            if (currentTable && newTable) {
+                currentTable.innerHTML = newTable.innerHTML;
+            }
+            
+            // Удаляем старую пагинацию и статистику
+            const oldPagination = document.querySelector('.pagination');
+            const oldStats = document.querySelector('div[style*="margin-top: 2rem"]');
+            
+            if (oldPagination) oldPagination.remove();
+            if (oldStats) oldStats.remove();
+            
+            // Добавляем новую пагинацию и статистику
+            if (newPagination && currentPaginationContainer) {
+                currentPaginationContainer.appendChild(newPagination);
+            }
+            if (newStats && currentPaginationContainer) {
+                currentPaginationContainer.appendChild(newStats);
+            }
+            
+            // Сбрасываем прозрачность
+            if (currentTable) {
+                currentTable.style.opacity = '1';
+            }
+            
+            // Переустанавливаем обработчики для внутренних ссылок
+            if (window.setupInternalLinks) {
+                window.setupInternalLinks();
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка поиска складов:', error);
+            const tableContainer = document.querySelector('.table-container');
+            if (tableContainer) {
+                tableContainer.style.opacity = '1';
+            }
+        });
+    }
+    
+    // Обработчик ввода с задержкой
+    if (searchInput) {
+        console.log('Инициализация поиска складов...');
+        
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            
+            // Задержка 300мс перед поиском
+            searchTimeout = setTimeout(() => {
+                performStoreSearch();
+            }, 300);
+        });
+        
+        // Обработчик Enter
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchTimeout);
+                performStoreSearch();
+            }
+        });
+        
+        // Фокус на поле поиска
+        searchInput.focus();
+        
+        // Сохраняем позицию курсора
+        const len = searchInput.value.length;
+        searchInput.setSelectionRange(len, len);
+    }
+})();
+</script>
