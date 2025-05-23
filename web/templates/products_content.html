@@ -1,0 +1,97 @@
+<div class="products-header">
+    <div>
+        <h1>Номенклатура</h1>
+    </div>
+    <form class="search-bar" onsubmit="return handleSearchForm(event, '/products')">
+        <input type="text" name="search" value="{{ search }}" placeholder="Поиск по названию или коду" class="search-input">
+        <button type="submit" class="search-btn">Поиск</button>
+    </form>
+</div>
+
+<div class="filters-container">
+    <form class="filters-form" onsubmit="return handleSearchForm(event, '/products')">
+        <input type="hidden" name="search" value="{{ search }}">
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" name="show_deleted" value="true" {% if show_deleted %}checked{% endif %}>
+                Показать удаленные
+            </label>
+        </div>
+        <button type="submit" class="action-btn secondary">Применить фильтры</button>
+    </form>
+</div>
+
+<div class="table-container">
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th>Код</th>
+                <th>Название</th>
+                <th>Номер</th>
+                <th>Статус</th>
+                <th>Синхронизировано</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr {% if product.deleted %}class="highlight-row"{% endif %}>
+                <td>{{ product.code or '-' }}</td>
+                <td>
+                    <a href="/product/{{ product.id }}">{{ product.name }}</a>
+                </td>
+                <td>{{ product.num or '-' }}</td>
+                <td>
+                    {% if product.deleted %}
+                        <span class="badge error">Удален</span>
+                    {% else %}
+                        <span class="badge success">Активный</span>
+                    {% endif %}
+                </td>
+                <td>{{ product.synced_at or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Пагинация -->
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="/products?page={{ page - 1 }}&search={{ search }}&show_deleted={{ show_deleted }}">← Назад</a>
+    {% endif %}
+    
+    {% set start_page = (1 if page - 2 < 1 else page - 2) %}
+    {% set end_page = (total_pages if page + 2 > total_pages else page + 2) %}
+    
+    {% if start_page > 1 %}
+        <a href="/products?page=1&search={{ search }}&show_deleted={{ show_deleted }}">1</a>
+        {% if start_page > 2 %}
+            <span>...</span>
+        {% endif %}
+    {% endif %}
+    
+    {% for p in range(start_page, end_page + 1) %}
+        {% if p == page %}
+            <span class="active">{{ p }}</span>
+        {% else %}
+            <a href="/products?page={{ p }}&search={{ search }}&show_deleted={{ show_deleted }}">{{ p }}</a>
+        {% endif %}
+    {% endfor %}
+    
+    {% if end_page < total_pages %}
+        {% if end_page < total_pages - 1 %}
+            <span>...</span>
+        {% endif %}
+        <a href="/products?page={{ total_pages }}&search={{ search }}&show_deleted={{ show_deleted }}">{{ total_pages }}</a>
+    {% endif %}
+    
+    {% if page < total_pages %}
+        <a href="/products?page={{ page + 1 }}&search={{ search }}&show_deleted={{ show_deleted }}">Вперед →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<div style="margin-top: 2rem; text-align: center; color: var(--text-secondary);">
+    Показано {{ products|length }} из {{ total }} продуктов
+</div>

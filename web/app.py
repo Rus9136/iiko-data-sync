@@ -26,6 +26,10 @@ db_url = f"postgresql://{DATABASE_CONFIG['user']}:{DATABASE_CONFIG['password']}@
 engine = create_engine(db_url)
 Session = sessionmaker(bind=engine)
 
+def is_ajax_request():
+    """Проверяет, является ли запрос AJAX"""
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
 @app.route('/')
 def index():
     """Главная страница"""
@@ -71,7 +75,26 @@ def index():
         all_syncs = [s for s in [last_sync_products, last_sync_stores, last_sync_sales, last_sync_accounts, last_sync_writeoffs] if s is not None]
         last_sync = max(all_syncs, key=lambda x: x.sync_date) if all_syncs else None
         
-        return render_template('index.html', 
+        # Получаем последние логи для dashboard
+        recent_logs = session.query(SyncLog).order_by(SyncLog.sync_date.desc()).limit(5).all()
+        
+        # Подготовка статистики для dashboard
+        stats = {
+            'sales_count': total_sales,
+            'products_count': total_products,
+            'products_updated': active_products,
+            'stores_count': total_stores,
+            'writeoffs_count': total_writeoffs
+        }
+        
+        # Форматируем последнюю синхронизацию
+        if last_sync:
+            last_sync_formatted = last_sync.sync_date.strftime('%d.%m.%Y %H:%M')
+        else:
+            last_sync_formatted = 'Нет данных'
+        
+        template = 'index.html'
+        return render_template(template, 
                              total_products=total_products,
                              active_products=active_products,
                              deleted_products=deleted_products,
@@ -81,7 +104,12 @@ def index():
                              active_accounts=active_accounts,
                              total_writeoffs=total_writeoffs,
                              total_writeoff_items=total_writeoff_items,
-                             last_sync=last_sync)
+                             last_sync=last_sync,
+                             recent_logs=recent_logs,
+                             stats=stats,
+                             last_sync_formatted=last_sync_formatted,
+                             db_size='N/A',
+                             last_migration='008_create_writeoff_tables.sql')
     finally:
         session.close()
 
@@ -126,7 +154,8 @@ def products():
                 'synced_at': product.synced_at.strftime('%Y-%m-%d %H:%M:%S') if product.synced_at else None
             })
         
-        return render_template('products.html', 
+        template = 'products_content.html' if is_ajax_request() else 'products.html'
+        return render_template(template, 
                              products=products_data,
                              page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -171,7 +200,8 @@ def stores():
                 'synced_at': store.synced_at.strftime('%Y-%m-%d %H:%M:%S') if store.synced_at else None
             })
         
-        return render_template('stores.html', 
+        template = 'stores_content.html' if is_ajax_request() else 'stores.html'
+        return render_template(template, 
                              stores=stores_data,
                              page=page,
                              total_pages=(total + per_page - 1) // per_page,
@@ -315,7 +345,8 @@ def product_detail(product_id):
         if product.category_id:
             category = session.query(Category).filter_by(id=product.category_id).first()
         
-        return render_template('product_detail.html', 
+        template = 'product_detail_content.html' if is_ajax_request() else 'product_detail.html'
+        return render_template(template, 
                              product=product,
                              parent=parent,
                              children=children,
@@ -339,7 +370,8 @@ def store_detail(store_id):
         
         children = session.query(Store).filter_by(parent_id=store_id).all()
         
-        return render_template('store_detail.html', 
+        template = 'store_detail_content.html' if is_ajax_request() else 'store_detail.html'
+        return render_template(template, 
                              store=store,
                              parent=parent,
                              children=children)
@@ -375,13 +407,18 @@ def logs():
     session = Session()
     try:
         logs = session.query(SyncLog).order_by(SyncLog.sync_date.desc()).limit(50).all()
-        return render_template('logs.html', logs=logs)
+        template = 'logs_content.html' if is_ajax_request() else 'logs.html'
+        return render_template(template, logs=logs)
     finally:
         session.close()
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload():
     """Загрузка JSON файла с данными"""
+    if request.method == 'GET':
+        template = 'upload_content.html' if is_ajax_request() else 'upload.html'
+        return render_template(template)
+    
     if request.method == 'POST':
         if 'file' not in request.files:
             return jsonify({'status': 'error', 'message': 'Файл не выбран'}), 400
@@ -429,7 +466,8 @@ def upload():
             return jsonify({'status': 'error', 'message': 'Неверный формат файла. Нужен JSON'}), 400
     
     # GET запрос - отображаем страницу
-    return render_template('upload.html')
+    template = 'upload_content.html' if is_ajax_request() else 'upload.html'
+    return render_template(template)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -542,7 +580,8 @@ def sales():
         # Получение списка складов для фильтра
         stores = session.query(Store).order_by(Store.name).all()
         
-        return render_template('sales.html', 
+        template = 'sales_content.html' if is_ajax_request() else 'sales.html'
+        return render_template(template, 
                              sales=sales,
                              page=page,
                              total_pages=(total_count + per_page - 1) // per_page,
@@ -723,7 +762,8 @@ def writeoffs():
         stores = session.query(Store).order_by(Store.name).all()
         accounts = session.query(Account).filter(Account.deleted == False).order_by(Account.name).all()
         
-        return render_template('writeoffs.html', 
+        template = 'writeoffs_content.html' if is_ajax_request() else 'writeoffs.html'
+        return render_template(template, 
                              documents=documents,
                              page=page,
                              total_pages=(total_count + per_page - 1) // per_page,
@@ -829,7 +869,8 @@ def writeoffs_sync():
         # Последняя синхронизация
         last_sync = session.query(SyncLog).filter(SyncLog.entity_type == 'writeoffs').order_by(SyncLog.sync_date.desc()).first()
         
-        return render_template('writeoffs_sync.html',
+        template = 'writeoffs_sync_content.html' if is_ajax_request() else 'writeoffs_sync.html'
+        return render_template(template,
                              default_start_date=default_start_date,
                              default_end_date=default_end_date,
                              total_documents=total_documents,
@@ -904,6 +945,8 @@ def writeoffs_delete():
 def sales_report():
     """Отчет по продажам с группировкой"""
     return get_sales_report()
+
+
 
 if __name__ == '__main__':
     # Создаем таблицы если их нет

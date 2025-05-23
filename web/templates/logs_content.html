@@ -1,0 +1,44 @@
+<div class="page-header">
+    <h1 class="page-title">История синхронизации</h1>
+    <p class="page-subtitle">Логи выполненных операций</p>
+</div>
+
+<div class="table-container">
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th>Дата</th>
+                <th>Тип</th>
+                <th>Записей</th>
+                <th>Статус</th>
+                <th>Детали</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.sync_date.strftime('%d.%m.%Y %H:%M:%S') if log.sync_date else '-' }}</td>
+                <td>
+                    <span class="badge secondary">{{ log.entity_type }}</span>
+                </td>
+                <td>{{ log.records_count or 0 }}</td>
+                <td>
+                    {% if log.status == 'success' %}
+                        <span class="badge success">Успешно</span>
+                    {% else %}
+                        <span class="badge error">Ошибка</span>
+                    {% endif %}
+                </td>
+                <td>{{ (log.details|string)[:100] if log.details else '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not logs %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Логи синхронизации пока отсутствуют.
+</div>
+{% endif %}

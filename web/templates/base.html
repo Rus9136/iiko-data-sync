@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}IIKO Data Sync{% endblock %}</title>
+    <title>{% block title %}IIKO Data Sync - Премиум панель управления{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
@@ -12,57 +15,401 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">IIKO Data Sync</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
+    <!-- Top Navigation Premium -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container-fluid px-4">
+            <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+                <i class="bi bi-list"></i>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="/">
-                            <i class="bi bi-house"></i> Главная
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'products' %}active{% endif %}" href="/products">
-                            <i class="bi bi-box"></i> Номенклатура
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'accounts' %}active{% endif %}" href="/accounts">
-                            <i class="bi bi-wallet2"></i> Счета
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint in ['writeoffs', 'writeoff_detail', 'writeoffs_sync'] %}active{% endif %}" href="/writeoffs">
-                            <i class="bi bi-clipboard-check"></i> Списания
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'logs' %}active{% endif %}" href="/logs">
-                            <i class="bi bi-clock-history"></i> История
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'upload' %}active{% endif %}" href="/upload">
-                            <i class="bi bi-upload"></i> Загрузка
-                        </a>
-                    </li>
-                </ul>
-                <button class="btn btn-primary" onclick="syncData()">
-                    <i class="bi bi-arrow-repeat"></i> Синхронизировать
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-diagram-3-fill me-2"></i>IIKO Data Sync
+            </a>
+            <div class="ms-auto d-flex align-items-center gap-3">
+                <span class="text-white-50 d-none d-md-inline">
+                    <i class="bi bi-clock me-1"></i>
+                    <span id="current-time"></span>
+                </span>
+                <button class="action-btn primary" onclick="syncData()">
+                    <i class="bi bi-arrow-repeat"></i> 
+                    <span class="d-none d-sm-inline">Синхронизировать</span>
                 </button>
             </div>
         </div>
     </nav>
     
-    <main class="container-fluid mt-4">
-        {% block content %}{% endblock %}
+    <!-- Premium Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <ul class="sidebar-nav">
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="dashboard">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Панель управления</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="stores">
+                        <i class="bi bi-building"></i>
+                        <span>Склады и магазины</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="products">
+                        <i class="bi bi-box-seam-fill"></i>
+                        <span>Номенклатура</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="sales">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Продажи</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="writeoffs">
+                        <i class="bi bi-file-earmark-minus"></i>
+                        <span>Документы списания</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>История операций</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="upload">
+                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                        <span>Загрузка данных</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Breadcrumb Navigation -->
+    <nav class="breadcrumb-nav" id="breadcrumb-nav" style="display: none;">
+        <ol class="breadcrumb" id="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="#" data-section="dashboard">
+                    <i class="bi bi-house"></i> Главная
+                </a>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="main-content">
+        <div class="content-container">
+            {% block content %}{% endblock %}
+        </div>
     </main>
     
     <script>
+        // Show current time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            const dateString = now.toLocaleDateString('ru-RU', { 
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            const timeElement = document.getElementById('current-time');
+            if (timeElement) {
+                timeElement.textContent = `${dateString}, ${timeString}`;
+            }
+        }
+        
+        // Navigation functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            const mainContent = document.getElementById('main-content');
+            
+            // Update time
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // Set default active section
+            setActiveSection('dashboard');
+            loadSection('dashboard');
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const section = this.getAttribute('data-section');
+                    setActiveSection(section);
+                    loadSection(section);
+                });
+            });
+            
+            // Setup internal links for initial content
+            setTimeout(() => {
+                setupInternalLinks();
+            }, 500);
+        });
+        
+        function setActiveSection(activeSection) {
+            const navLinks = document.querySelectorAll('.sidebar .nav-link');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-section') === activeSection) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // Обновляем хлебные крошки
+            updateBreadcrumb(activeSection);
+        }
+        
+        function updateBreadcrumb(section) {
+            const breadcrumbNav = document.getElementById('breadcrumb-nav');
+            const breadcrumb = document.getElementById('breadcrumb');
+            
+            const sectionNames = {
+                'dashboard': 'Панель управления',
+                'stores': 'Склады и магазины',
+                'products': 'Номенклатура',
+                'sales': 'Продажи',
+                'writeoffs': 'Документы списания',
+                'logs': 'История операций',
+                'upload': 'Загрузка данных'
+            };
+            
+            const sectionIcons = {
+                'dashboard': 'bi-speedometer2',
+                'stores': 'bi-building',
+                'products': 'bi-box-seam-fill',
+                'sales': 'bi-cash-stack',
+                'writeoffs': 'bi-file-earmark-minus',
+                'logs': 'bi-journal-text',
+                'upload': 'bi-cloud-arrow-up-fill'
+            };
+            
+            if (section === 'dashboard') {
+                breadcrumbNav.style.display = 'none';
+            } else {
+                breadcrumbNav.style.display = 'block';
+                breadcrumb.innerHTML = `
+                    <li class="breadcrumb-item">
+                        <a href="#" data-section="dashboard">
+                            <i class="bi bi-speedometer2"></i> Панель управления
+                        </a>
+                    </li>
+                    <li class="breadcrumb-separator">
+                        <i class="bi bi-chevron-right"></i>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        <i class="bi ${sectionIcons[section]}"></i> ${sectionNames[section]}
+                    </li>
+                `;
+                
+                // Добавляем обработчик клика для хлебных крошек
+                const homeLink = breadcrumb.querySelector('a[data-section="dashboard"]');
+                if (homeLink) {
+                    homeLink.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        setActiveSection('dashboard');
+                        loadSection('dashboard');
+                    });
+                }
+            }
+        }
+        
+        function loadSection(section) {
+            const mainContent = document.querySelector('.content-container');
+            mainContent.innerHTML = '<div class="loading-spinner"><i class="bi bi-hourglass-split"></i> Загрузка...</div>';
+            
+            let url;
+            switch(section) {
+                case 'dashboard':
+                    url = '/';
+                    break;
+                case 'stores':
+                    url = '/stores';
+                    break;
+                case 'products':
+                    url = '/products';
+                    break;
+                case 'sales':
+                    url = '/sales';
+                    break;
+                case 'writeoffs':
+                    url = '/writeoffs';
+                    break;
+                case 'logs':
+                    url = '/logs';
+                    break;
+                case 'upload':
+                    url = '/upload';
+                    break;
+                default:
+                    url = '/';
+            }
+            
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                mainContent.innerHTML = html;
+                
+                // Re-initialize any scripts in the loaded content
+                const scripts = mainContent.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    newScript.textContent = script.textContent;
+                    script.parentNode.replaceChild(newScript, script);
+                });
+                
+                // Add event listeners to internal links
+                setupInternalLinks();
+            })
+            .catch(error => {
+                console.error('Error loading section:', error);
+                mainContent.innerHTML = '<div class="alert alert-danger">Ошибка загрузки раздела</div>';
+            });
+        }
+        
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+        
+        function setupInternalLinks() {
+            const mainContent = document.querySelector('.content-container');
+            const internalLinks = mainContent.querySelectorAll('a[href^="/"]');
+            
+            internalLinks.forEach(link => {
+                // Skip if already has event listener
+                if (link.dataset.ajaxHandled) return;
+                
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const url = this.getAttribute('href');
+                    loadInternalPage(url);
+                });
+                
+                link.dataset.ajaxHandled = 'true';
+            });
+        }
+        
+        function loadInternalPage(url) {
+            const mainContent = document.querySelector('.content-container');
+            mainContent.innerHTML = '<div class="loading-spinner"><i class="bi bi-hourglass-split"></i> Загрузка...</div>';
+            
+            fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.text())
+            .then(html => {
+                mainContent.innerHTML = html;
+                
+                // Re-initialize any scripts in the loaded content
+                const scripts = mainContent.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const newScript = document.createElement('script');
+                    newScript.textContent = script.textContent;
+                    script.parentNode.replaceChild(newScript, script);
+                });
+                
+                // Setup internal links again for new content
+                setupInternalLinks();
+                
+                // Update breadcrumbs for detail pages
+                updateDetailBreadcrumb(url);
+            })
+            .catch(error => {
+                console.error('Error loading page:', error);
+                mainContent.innerHTML = '<div class="alert alert-danger">Ошибка загрузки страницы</div>';
+            });
+        }
+        
+        function updateDetailBreadcrumb(url) {
+            const breadcrumbNav = document.getElementById('breadcrumb-nav');
+            const breadcrumb = document.getElementById('breadcrumb');
+            
+            // Determine current section from active sidebar link
+            const activeLink = document.querySelector('.sidebar .nav-link.active');
+            let currentSection = activeLink ? activeLink.getAttribute('data-section') : 'dashboard';
+            
+            const sectionNames = {
+                'dashboard': 'Панель управления',
+                'stores': 'Склады и магазины',
+                'products': 'Номенклатура',
+                'sales': 'Продажи',
+                'writeoffs': 'Документы списания',
+                'logs': 'История операций',
+                'upload': 'Загрузка данных'
+            };
+            
+            const sectionIcons = {
+                'dashboard': 'bi-speedometer2',
+                'stores': 'bi-building',
+                'products': 'bi-box-seam-fill',
+                'sales': 'bi-cash-stack',
+                'writeoffs': 'bi-file-earmark-minus',
+                'logs': 'bi-journal-text',
+                'upload': 'bi-cloud-arrow-up-fill'
+            };
+            
+            if (url.includes('/product/') || url.includes('/store/') || url.includes('/sale/') || url.includes('/writeoff/')) {
+                breadcrumbNav.style.display = 'block';
+                breadcrumb.innerHTML = `
+                    <li class="breadcrumb-item">
+                        <a href="#" data-section="dashboard">
+                            <i class="bi bi-speedometer2"></i> Панель управления
+                        </a>
+                    </li>
+                    <li class="breadcrumb-separator">
+                        <i class="bi bi-chevron-right"></i>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#" data-section="${currentSection}">
+                            <i class="bi ${sectionIcons[currentSection]}"></i> ${sectionNames[currentSection]}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-separator">
+                        <i class="bi bi-chevron-right"></i>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        <i class="bi bi-eye"></i> Детали
+                    </li>
+                `;
+                
+                // Add click handlers for breadcrumb links
+                const breadcrumbLinks = breadcrumb.querySelectorAll('a[data-section]');
+                breadcrumbLinks.forEach(link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const section = this.getAttribute('data-section');
+                        setActiveSection(section);
+                        loadSection(section);
+                    });
+                });
+            }
+        }
+        
+        function handleSearchForm(event, baseUrl) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+            const url = baseUrl + '?' + params.toString();
+            
+            loadInternalPage(url);
+            return false;
+        }
+        
         function syncData() {
             if (!confirm('Начать синхронизацию с IIKO?')) return;
             
@@ -76,7 +423,12 @@
                 .then(data => {
                     if (data.status === 'success') {
                         alert('Синхронизация завершена успешно!');
-                        location.reload();
+                        // Refresh current section if needed
+                        const activeLink = document.querySelector('.sidebar .nav-link.active');
+                        if (activeLink) {
+                            const section = activeLink.getAttribute('data-section');
+                            loadSection(section);
+                        }
                     } else {
                         alert('Ошибка: ' + data.message);
                     }
@@ -88,6 +440,21 @@
                     btn.disabled = false;
                     btn.innerHTML = originalText;
                 });
+        }
+        
+        function goBackToProducts() {
+            setActiveSection('products');
+            loadSection('products');
+        }
+        
+        function goBackToStores() {
+            setActiveSection('stores');
+            loadSection('stores');
+        }
+        
+        function goBackToWriteoffs() {
+            setActiveSection('writeoffs');
+            loadSection('writeoffs');
         }
     </script>
 </body>

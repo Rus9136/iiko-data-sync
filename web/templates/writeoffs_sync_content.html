@@ -1,0 +1,409 @@
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="page-title">Синхронизация документов списания</h1>
+            <p class="page-subtitle">Загрузите документы списания из IIKO API за указанный период</p>
+        </div>
+        <button class="back-btn" onclick="goBackToWriteoffs()">
+            <i class="bi bi-arrow-left"></i> Назад к списку
+        </button>
+    </div>
+</div>
+
+<!-- Текущая статистика -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="summary-card writeoffs">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-file-earmark-text"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ total_documents }}</div>
+                    <div class="summary-label">Документов в БД</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="summary-card writeoffs">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-list-ul"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ total_items }}</div>
+                    <div class="summary-label">Позиций в БД</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="summary-card writeoffs">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-calendar-event"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">
+                        {% if last_document_date %}
+                        {{ last_document_date }}
+                        {% else %}
+                        —
+                        {% endif %}
+                    </div>
+                    <div class="summary-label">Последний документ</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="summary-card writeoffs">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-arrow-repeat"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">
+                        {% if last_sync %}
+                        {{ last_sync.sync_date.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                        Никогда
+                        {% endif %}
+                    </div>
+                    <div class="summary-label">Последняя синхронизация</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Форма синхронизации -->
+<div class="row justify-content-center mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Параметры синхронизации</h3>
+            </div>
+            <div class="card-body">
+                <form id="syncForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ default_start_date }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="end_date" class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ default_end_date }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Примечание:</strong> Синхронизация загрузит документы списания со статусами <code>NEW</code> и <code>PROCESSED</code> за указанный период. 
+                        Существующие документы будут обновлены. Документы с другими статусами будут пропущены.
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="syncBtn">
+                            <i class="bi bi-arrow-repeat"></i> Начать синхронизацию
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Прогресс -->
+                <div id="progressContainer" class="mt-3" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <p class="text-center mt-2">Выполняется синхронизация...</p>
+                </div>
+
+                <!-- Результат -->
+                <div id="resultContainer" class="mt-3" style="display: none;">
+                    <div id="resultAlert" class="alert"></div>
+                    <div id="statsContainer" style="display: none;">
+                        <h6>Статистика синхронизации:</h6>
+                        <ul id="statsList" class="list-unstyled"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Форма удаления -->
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h3 class="card-title text-white">Удаление документов</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Внимание!</strong> Данная операция удалит все документы списания за указанный период. 
+                    Это действие необратимо!
+                </div>
+                
+                <form id="deleteForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="delete_start_date" class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="delete_start_date" name="delete_start_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="delete_end_date" class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="delete_end_date" name="delete_end_date" required>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger" id="deleteBtn">
+                            <i class="bi bi-trash"></i> Удалить документы за период
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Результат удаления -->
+                <div id="deleteResultContainer" class="mt-3" style="display: none;">
+                    <div id="deleteResultAlert" class="alert"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function goBackToWriteoffs() {
+    if (typeof setActiveSection === 'function' && typeof loadSection === 'function') {
+        setActiveSection('writeoffs');
+        loadSection('writeoffs');
+    } else if (typeof loadInternalPage === 'function') {
+        loadInternalPage('/writeoffs');
+    } else {
+        window.location.href = '/writeoffs';
+    }
+}
+
+document.getElementById('syncForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const syncBtn = document.getElementById('syncBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const resultContainer = document.getElementById('resultContainer');
+    const resultAlert = document.getElementById('resultAlert');
+    const statsContainer = document.getElementById('statsContainer');
+    const statsList = document.getElementById('statsList');
+    
+    // Показываем прогресс
+    syncBtn.disabled = true;
+    progressContainer.style.display = 'block';
+    resultContainer.style.display = 'none';
+    
+    // Отправляем запрос
+    fetch('/writeoffs/sync', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        progressContainer.style.display = 'none';
+        resultContainer.style.display = 'block';
+        
+        if (data.status === 'success') {
+            resultAlert.className = 'alert alert-success';
+            resultAlert.innerHTML = '<i class="bi bi-check-circle"></i> ' + data.message;
+            
+            if (data.stats) {
+                statsContainer.style.display = 'block';
+                statsList.innerHTML = '';
+                
+                Object.entries(data.stats).forEach(([key, value]) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${key}:</strong> ${value}`;
+                    statsList.appendChild(li);
+                });
+            }
+            
+            // Показываем уведомление об успехе
+            setTimeout(() => {
+                if (typeof showToast === 'function') {
+                    showToast('Синхронизация завершена успешно!', 'success');
+                }
+            }, 1000);
+        } else {
+            resultAlert.className = 'alert alert-danger';
+            resultAlert.innerHTML = '<i class="bi bi-exclamation-circle"></i> Ошибка: ' + data.message;
+        }
+    })
+    .catch(error => {
+        progressContainer.style.display = 'none';
+        resultContainer.style.display = 'block';
+        resultAlert.className = 'alert alert-danger';
+        resultAlert.innerHTML = '<i class="bi bi-exclamation-circle"></i> Произошла ошибка: ' + error.message;
+    })
+    .finally(() => {
+        syncBtn.disabled = false;
+    });
+});
+
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!confirm('Вы уверены, что хотите удалить все документы списания за указанный период? Это действие необратимо!')) {
+        return;
+    }
+    
+    const startDate = document.getElementById('delete_start_date').value;
+    const endDate = document.getElementById('delete_end_date').value;
+    const deleteBtn = document.getElementById('deleteBtn');
+    const deleteResultContainer = document.getElementById('deleteResultContainer');
+    const deleteResultAlert = document.getElementById('deleteResultAlert');
+    
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Удаление...';
+    
+    fetch('/writeoffs/delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        deleteResultContainer.style.display = 'block';
+        
+        if (data.status === 'success') {
+            deleteResultAlert.className = 'alert alert-success';
+            deleteResultAlert.innerHTML = '<i class="bi bi-check-circle"></i> ' + data.message;
+            
+            if (typeof showToast === 'function') {
+                showToast('Удаление завершено успешно!', 'success');
+            }
+        } else {
+            deleteResultAlert.className = 'alert alert-danger';
+            deleteResultAlert.innerHTML = '<i class="bi bi-exclamation-circle"></i> Ошибка: ' + data.message;
+        }
+    })
+    .catch(error => {
+        deleteResultContainer.style.display = 'block';
+        deleteResultAlert.className = 'alert alert-danger';
+        deleteResultAlert.innerHTML = '<i class="bi bi-exclamation-circle"></i> Произошла ошибка: ' + error.message;
+    })
+    .finally(() => {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '<i class="bi bi-trash"></i> Удалить документы за период';
+    });
+});
+</script>
+
+<style>
+.summary-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-fast);
+    height: 100%;
+}
+
+.summary-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.summary-card.writeoffs {
+    border-left: 4px solid var(--writeoffs-red);
+}
+
+.summary-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    background: linear-gradient(135deg, var(--writeoffs-red) 0%, #b91c1c 100%);
+}
+
+.summary-text {
+    flex: 1;
+}
+
+.summary-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.summary-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.alert {
+    border-radius: 8px;
+    border: none;
+    font-size: 0.875rem;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+    color: #1e40af;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+    color: #92400e;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+    color: #065f46;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+    color: #991b1b;
+}
+
+.progress {
+    height: 10px;
+    border-radius: 6px;
+    background-color: var(--border-color);
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, var(--writeoffs-red) 0%, #ef4444 100%);
+    border-radius: 6px;
+}
+</style>

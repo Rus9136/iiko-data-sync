@@ -1,0 +1,159 @@
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="page-title">{{ product.name }}</h1>
+            <div class="d-flex gap-2 mt-2">
+                {% if product.deleted %}
+                    <span class="badge error">Удален</span>
+                {% else %}
+                    <span class="badge success">Активен</span>
+                {% endif %}
+            </div>
+        </div>
+        <button class="back-btn" onclick="goBackToProducts()">
+            <i class="bi bi-arrow-left"></i> Назад к списку
+        </button>
+    </div>
+</div>
+
+<div class="row" style="display: flex; gap: 2rem;">
+    <div class="col-md-8" style="flex: 1;">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Основная информация</h3>
+            </div>
+            <div class="card-body">
+                <div class="detail-grid">
+                    <div class="detail-row">
+                        <div class="detail-label">ID</div>
+                        <div class="detail-value">{{ product.id }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Код</div>
+                        <div class="detail-value">{{ product.code or '-' }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Номер</div>
+                        <div class="detail-value">{{ product.num or '-' }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Описание</div>
+                        <div class="detail-value">{{ product.description or '-' }}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Категория</div>
+                        <div class="detail-value">
+                            {% if category %}
+                                {{ category.name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Родительский продукт</div>
+                        <div class="detail-value">
+                            {% if parent %}
+                                <a href="/product/{{ parent.id }}">{{ parent.name }}</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Синхронизировано</div>
+                        <div class="detail-value">
+                            {% if product.synced_at %}
+                                {{ product.synced_at.strftime('%d.%m.%Y %H:%M:%S') }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if children %}
+    <div class="col-md-4" style="flex: 0 0 400px;">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Дочерние продукты</h4>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for child in children %}
+                    <a href="/product/{{ child.id }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ child.name }}</h6>
+                            {% if child.deleted %}
+                                <small class="badge error">Удален</small>
+                            {% endif %}
+                        </div>
+                        {% if child.code %}
+                            <p class="mb-1">Код: {{ child.code }}</p>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.detail-value {
+    font-weight: 500;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.list-group-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px !important;
+    margin-bottom: 0.5rem;
+    transition: all var(--transition-fast);
+}
+
+.list-group-item:hover {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .row {
+        flex-direction: column !important;
+    }
+    
+    .col-md-4 {
+        flex: 1 !important;
+    }
+}
+</style>

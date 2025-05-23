@@ -1,0 +1,319 @@
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="page-title">Списания</h1>
+            <p class="page-subtitle">Документы списания товаров</p>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Фильтры</h3>
+    </div>
+    <div class="card-body">
+        <form onsubmit="handleSearchForm(event, '/writeoffs')" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Поиск</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ search }}" 
+                       placeholder="Номер документа, комментарий...">
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">Дата с</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">Дата по</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-2">
+                <label for="store_id" class="form-label">Склад</label>
+                <select class="form-select" id="store_id" name="store_id">
+                    <option value="">Все склады</option>
+                    {% for store in stores %}
+                    <option value="{{ store.id }}" {% if store_id == store.id|string %}selected{% endif %}>
+                        {{ store.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="account_id" class="form-label">Счет</label>
+                <select class="form-select" id="account_id" name="account_id">
+                    <option value="">Все счета</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if account_id == account.id|string %}selected{% endif %}>
+                        {{ account.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary d-block">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="summary-card writeoffs">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ total_count }}</div>
+                    <div class="summary-label">Документов списания найдено</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Таблица документов -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Список документов</h3>
+    </div>
+    <div class="card-body">
+        {% if documents %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Номер документа</th>
+                        <th>Дата</th>
+                        <th>Склад</th>
+                        <th>Счет</th>
+                        <th>Статус</th>
+                        <th>Позиций</th>
+                        <th>Количество</th>
+                        <th>Комментарий</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td>
+                            <a href="/writeoff/{{ doc.WriteoffDocument.id }}" 
+                               class="text-decoration-none fw-bold">
+                                {{ doc.WriteoffDocument.document_number or 'Без номера' }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if doc.WriteoffDocument.date_incoming %}
+                            {{ doc.WriteoffDocument.date_incoming.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ doc.store_name or 'Неизвестен' }}</td>
+                        <td>{{ doc.account_name or 'Неизвестен' }}</td>
+                        <td>
+                            {% if doc.WriteoffDocument.status %}
+                            <span class="badge {% if doc.WriteoffDocument.status.name == 'NEW' %}primary{% elif doc.WriteoffDocument.status.name == 'PROCESSED' %}success{% else %}secondary{% endif %}">
+                                {{ doc.WriteoffDocument.status.name }}
+                            </span>
+                            {% else %}
+                            <span class="badge secondary">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge info">{{ doc.items_count or 0 }}</span>
+                        </td>
+                        <td>
+                            {% if doc.total_amount %}
+                            {{ "%.3f"|format(doc.total_amount) }}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if doc.WriteoffDocument.comment %}
+                            <span title="{{ doc.WriteoffDocument.comment }}">
+                                {{ doc.WriteoffDocument.comment[:50] }}{% if doc.WriteoffDocument.comment|length > 50 %}...{% endif %}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/writeoff/{{ doc.WriteoffDocument.id }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Пагинация -->
+        {% if total_pages > 1 %}
+        <nav aria-label="Навигация по страницам" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page - 1 }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&account_id={{ account_id }}">Предыдущая</a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(1, total_pages + 1) %}
+                    {% if p == page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ p }}</span>
+                    </li>
+                    {% elif p <= 3 or p >= total_pages - 2 or (p >= page - 2 and p <= page + 2) %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ p }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&account_id={{ account_id }}">{{ p }}</a>
+                    </li>
+                    {% elif (p == 4 and page > 6) or (p == total_pages - 3 and page < total_pages - 5) %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page + 1 }}&search={{ search }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&account_id={{ account_id }}">Следующая</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: var(--text-secondary);"></i>
+            <p class="text-muted mt-2">Документы списания не найдены</p>
+            <p class="text-muted">Измените параметры фильтрации или загрузите данные</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.summary-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-fast);
+    height: 100%;
+}
+
+.summary-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.summary-card.writeoffs {
+    border-left: 4px solid var(--writeoffs-red);
+}
+
+.summary-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    background: linear-gradient(135deg, var(--writeoffs-red) 0%, #b91c1c 100%);
+}
+
+.summary-text {
+    flex: 1;
+}
+
+.summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.summary-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+
+.badge.primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge.success {
+    background: linear-gradient(135deg, var(--sales-green) 0%, #065f46 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge.secondary {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.badge.info {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+</style>

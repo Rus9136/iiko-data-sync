@@ -1,0 +1,317 @@
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1 class="page-title">Продажи</h1>
+            <p class="page-subtitle">Список чеков и заказов</p>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">Фильтры</h3>
+    </div>
+    <div class="card-body">
+        <form onsubmit="handleSearchForm(event, '/sales')" class="row g-3">
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">С:</label>
+                <input type="date" name="date_from" id="date_from" value="{{ date_from }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">По:</label>
+                <input type="date" name="date_to" id="date_to" value="{{ date_to }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="store_id" class="form-label">Склад:</label>
+                <select name="store_id" id="store_id" class="form-select">
+                    <option value="">Все склады</option>
+                    {% for store in stores %}
+                    <option value="{{ store.id }}" {% if store.id|string == store_id|string %}selected{% endif %}>{{ store.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="sale_type" class="form-label">Тип чека:</label>
+                <select name="sale_type" id="sale_type" class="form-select">
+                    <option value="all" {% if sale_type == "all" %}selected{% endif %}>Все чеки</option>
+                    <option value="normal" {% if sale_type == "normal" %}selected{% endif %}>Обычные чеки</option>
+                    <option value="returns" {% if sale_type == "returns" %}selected{% endif %}>Возвраты</option>
+                    <option value="canceled" {% if sale_type == "canceled" %}selected{% endif %}>Отмененные</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="search" class="form-label">Поиск:</label>
+                <div class="input-group">
+                    <input type="text" name="search" id="search" value="{{ search }}" placeholder="Номер чека или заказа" class="form-control">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="summary-card sales">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-receipt"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ total_count }}</div>
+                    <div class="summary-label">Всего продаж</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="summary-card sales">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ '{:,.0f}'.format(total_sum).replace(',', ' ') }} ₸</div>
+                    <div class="summary-label">Сумма продаж</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="summary-card sales">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ '{:,.0f}'.format(discount_sum).replace(',', ' ') }} ₸</div>
+                    <div class="summary-label">Сумма скидок</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="summary-card sales">
+            <div class="summary-content">
+                <div class="summary-icon">
+                    <i class="bi bi-basket"></i>
+                </div>
+                <div class="summary-text">
+                    <div class="summary-value">{{ unique_orders }}</div>
+                    <div class="summary-label">Уникальных заказов</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Список продаж</h3>
+    </div>
+    <div class="card-body">
+        {% if sales %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Дата закрытия</th>
+                        <th>№ заказа</th>
+                        <th>№ чека</th>
+                        <th>Сумма чека</th>
+                        <th>Номер кассы</th>
+                        <th>Касса</th>
+                        <th>Подразделение</th>
+                        <th>Склад</th>
+                        <th>Тип оплаты</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td>{{ sale.close_time.strftime('%d.%m.%Y %H:%M') if sale.close_time else '' }}</td>
+                        <td>
+                            <a href="/sale/{{ sale.first_sale_id }}" class="text-decoration-none fw-bold">{{ sale.order_num }}</a>
+                        </td>
+                        <td>{{ sale.fiscal_cheque_number or '-' }}</td>
+                        <td class="fw-bold text-success">{{ '{:,.0f}'.format(sale.order_sum).replace(',', ' ') if sale.order_sum is not none else '0' }} ₸</td>
+                        <td>{{ sale.cash_register_number or '-' }}</td>
+                        <td>{{ sale.cash_register_name or '-' }}</td>
+                        <td>{{ sale.department or '-' }}</td>
+                        <td>{{ sale.store_name or '-' }}</td>
+                        <td>{{ sale.pay_types or '-' }}</td>
+                        <td>
+                            {% if sale.storned == True %}
+                                <span class="badge error">Отменен</span>
+                            {% elif sale.deleted_with_writeoff == 'NOT_DELETED' and sale.order_return_sum is not none and sale.order_return_sum > 0 %}
+                                <span class="badge warning">Возврат</span>
+                            {% elif sale.deleted_with_writeoff == 'NOT_DELETED' %}
+                                <span class="badge success">Активный</span>
+                            {% else %}
+                                <span class="badge secondary">{{ sale.deleted_with_writeoff }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Пагинация -->
+        {% if total_pages > 1 %}
+        <nav aria-label="Навигация по страницам" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page - 1 }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">← Назад</a>
+                </li>
+                {% endif %}
+                
+                {% set start_page = (1 if page - 2 < 1 else page - 2) %}
+                {% set end_page = (total_pages if page + 2 > total_pages else page + 2) %}
+                
+                {% if start_page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">1</a>
+                    </li>
+                    {% if start_page > 2 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endif %}
+                
+                {% for p in range(start_page, end_page + 1) %}
+                    {% if p == page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ p }}</span>
+                        </li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ p }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">{{ p }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if end_page < total_pages %}
+                    {% if end_page < total_pages - 1 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ total_pages }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">{{ total_pages }}</a>
+                    </li>
+                {% endif %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page + 1 }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">Вперед →</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-receipt" style="font-size: 3rem; color: var(--text-secondary);"></i>
+            <p class="text-muted mt-2">Продажи не найдены</p>
+            <p class="text-muted">Измените параметры фильтрации или проверьте синхронизацию данных</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.summary-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-fast);
+    height: 100%;
+}
+
+.summary-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.summary-card.sales {
+    border-left: 4px solid var(--sales-green);
+}
+
+.summary-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    background: linear-gradient(135deg, var(--sales-green) 0%, #065f46 100%);
+}
+
+.summary-text {
+    flex: 1;
+}
+
+.summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.summary-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.table th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.875rem;
+}
+
+.badge.success {
+    background: linear-gradient(135deg, var(--sales-green) 0%, #065f46 100%);
+    color: white;
+}
+
+.badge.error {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white;
+}
+
+.badge.warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.badge.secondary {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+}
+</style>

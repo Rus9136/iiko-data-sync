@@ -1,0 +1,187 @@
+<div class="container">
+    <header>
+        <h1>IIKO Data Sync</h1>
+        <p class="subtitle">Система синхронизации данных</p>
+    </header>
+    
+    <main>
+        <!-- Основные действия -->
+        <div class="section">
+            <h2 class="section-title">Основные действия</h2>
+            <div class="action-grid">
+                <button class="action-btn warehouse" onclick="syncData('products')">
+                    <i class="bi bi-arrow-repeat" style="font-size: 1.5rem;"></i>
+                    Получить номенклатуру
+                </button>
+                <button class="action-btn warehouse" onclick="syncData('stores')">
+                    <i class="bi bi-arrow-repeat" style="font-size: 1.5rem;"></i>
+                    Получить склады
+                </button>
+                <button class="action-btn sales" onclick="showSalesForm()">
+                    <i class="bi bi-graph-up-arrow" style="font-size: 1.5rem;"></i>
+                    Загрузить продажи
+                </button>
+                <button class="action-btn reports" onclick="showSalesReport()">
+                    <i class="bi bi-file-earmark-bar-graph" style="font-size: 1.5rem;"></i>
+                    Отчет по продажам
+                </button>
+                <button class="action-btn accounts" onclick="syncData('accounts')">
+                    <i class="bi bi-arrow-repeat" style="font-size: 1.5rem;"></i>
+                    Получить счета
+                </button>
+                <button class="action-btn writeoffs" onclick="showWriteoffsForm()">
+                    <i class="bi bi-clipboard-check" style="font-size: 1.5rem;"></i>
+                    Загрузить списания
+                </button>
+            </div>
+        </div>
+
+        <!-- Будущие разделы -->
+        <div class="section">
+            <h2 class="section-title">Планируется к разработке</h2>
+            <div class="action-grid">
+                <button class="action-btn disabled" disabled>
+                    <i class="bi bi-building" style="font-size: 1.5rem;"></i>
+                    Подразделения
+                </button>
+                <button class="action-btn disabled" disabled>
+                    <i class="bi bi-truck" style="font-size: 1.5rem;"></i>
+                    Поставщики
+                </button>
+                <button class="action-btn disabled" disabled>
+                    <i class="bi bi-people" style="font-size: 1.5rem;"></i>
+                    Сотрудники
+                </button>
+                <button class="action-btn disabled" disabled>
+                    <i class="bi bi-gear" style="font-size: 1.5rem;"></i>
+                    Настройки
+                </button>
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="section">
+            <h2 class="section-title">Статистика базы данных</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_products }}</div>
+                    <div class="stat-label">Продуктов в базе</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ active_products }}</div>
+                    <div class="stat-label">Активных</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_stores }}</div>
+                    <div class="stat-label">Складов в базе</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_sales|default(0) }}</div>
+                    <div class="stat-label">Продаж в базе</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_accounts|default(0) }}</div>
+                    <div class="stat-label">Счетов в базе</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ active_accounts|default(0) }}</div>
+                    <div class="stat-label">Активных счетов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_writeoffs|default(0) }}</div>
+                    <div class="stat-label">Документов списания</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ total_writeoff_items|default(0) }}</div>
+                    <div class="stat-label">Позиций списания</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">
+                        {% if last_sync %}
+                            {{ last_sync.sync_date.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                            Нет данных
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">Последняя синхронизация</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Toast уведомления -->
+<div id="toast" class="toast"></div>
+
+<script>
+    // Функция для показа уведомлений
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    // Синхронизация данных
+    async function syncData(entity) {
+        const button = event.target.closest('button');
+        button.disabled = true;
+        button.classList.add('loading');
+        
+        showToast('Запуск синхронизации...', 'info');
+        
+        try {
+            const response = await fetch('/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ entity: entity })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showToast(data.message || 'Синхронизация завершена', 'success');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showToast(data.error || 'Ошибка синхронизации', 'error');
+            }
+        } catch (error) {
+            showToast('Ошибка сети: ' + error.message, 'error');
+        } finally {
+            button.disabled = false;
+            button.classList.remove('loading');
+        }
+    }
+
+    // Показать форму загрузки продаж
+    function showSalesForm() {
+        if (typeof loadInternalPage === 'function') {
+            loadInternalPage('/sales/sync');
+        } else {
+            window.location.href = '/sales/sync';
+        }
+    }
+    
+    // Показать отчет по продажам
+    function showSalesReport() {
+        if (typeof loadInternalPage === 'function') {
+            loadInternalPage('/sales/report');
+        } else {
+            window.location.href = '/sales/report';
+        }
+    }
+    
+    // Показать форму загрузки списаний
+    function showWriteoffsForm() {
+        if (typeof loadInternalPage === 'function') {
+            loadInternalPage('/writeoffs/sync');
+        } else {
+            window.location.href = '/writeoffs/sync';
+        }
+    }
+</script>

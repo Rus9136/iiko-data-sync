@@ -1,0 +1,315 @@
+<!-- Dashboard Content -->
+<div class="page-header mb-5">
+    <h1 class="page-title">Панель управления IIKO Data Sync</h1>
+    <p class="page-subtitle">Управление данными и мониторинг синхронизации</p>
+</div>
+
+<!-- Статистика -->
+<div class="stats-grid mb-5">
+    <div class="stat-card sales">
+        <div class="stat-icon">
+            <i class="bi bi-cash-stack"></i>
+        </div>
+        <div class="stat-value">{{ stats.sales_count | default(0) }}</div>
+        <div class="stat-label">Продаж</div>
+        <div class="stat-trend">
+            <i class="bi bi-arrow-up"></i> 12% за последние 7 дней
+        </div>
+    </div>
+    
+    <div class="stat-card warehouse">
+        <div class="stat-icon">
+            <i class="bi bi-box-seam-fill"></i>
+        </div>
+        <div class="stat-value">{{ stats.products_count | default(0) }}</div>
+        <div class="stat-label">Товаров</div>
+        <div class="stat-trend">
+            <i class="bi bi-arrow-up"></i> Обновлено {{ stats.products_updated | default(0) }}
+        </div>
+    </div>
+    
+    <div class="stat-card stores">
+        <div class="stat-icon">
+            <i class="bi bi-building"></i>
+        </div>
+        <div class="stat-value">{{ stats.stores_count | default(0) }}</div>
+        <div class="stat-label">Складов</div>
+        <div class="stat-trend">
+            <i class="bi bi-check-circle"></i> Все активны
+        </div>
+    </div>
+    
+    <div class="stat-card writeoffs">
+        <div class="stat-icon">
+            <i class="bi bi-file-earmark-minus"></i>
+        </div>
+        <div class="stat-value">{{ stats.writeoffs_count | default(0) }}</div>
+        <div class="stat-label">Списаний</div>
+        <div class="stat-trend">
+            <i class="bi bi-clock"></i> За последний месяц
+        </div>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<section class="section">
+    <h2 class="section-title mb-4">Быстрые действия</h2>
+    <div class="action-grid">
+        <a href="#" class="action-btn sales" data-section="sales">
+            <i class="bi bi-cash-stack"></i>
+            <span>Просмотр продаж</span>
+        </a>
+        <a href="#" class="action-btn warehouse" data-section="products">
+            <i class="bi bi-box-seam-fill"></i>
+            <span>Каталог товаров</span>
+        </a>
+        <a href="#" class="action-btn primary" onclick="syncData()">
+            <i class="bi bi-arrow-repeat"></i>
+            <span>Синхронизировать все</span>
+        </a>
+        <a href="#" class="action-btn reports" data-section="sales" onclick="setTimeout(() => loadInternalPage('/sales/report'), 100)">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span>Отчеты по продажам</span>
+        </a>
+    </div>
+</section>
+
+<!-- Последняя активность -->
+<section class="section">
+    <h2 class="section-title mb-4">Последняя активность</h2>
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">История синхронизации</h3>
+            <a href="#" class="action-btn secondary" data-section="logs" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                <i class="bi bi-clock-history"></i>
+                Все операции
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="padding: 1rem 1.5rem;">Дата и время</th>
+                        <th style="padding: 1rem 1.5rem;">Операция</th>
+                        <th style="padding: 1rem 1.5rem;">Статус</th>
+                        <th style="padding: 1rem 1.5rem;">Детали</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs[:5] %}
+                    <tr>
+                        <td style="padding: 1rem 1.5rem;">{{ log.sync_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td style="padding: 1rem 1.5rem;">
+                            <span class="fw-medium">{{ log.entity_type | title }}</span>
+                        </td>
+                        <td style="padding: 1rem 1.5rem;">
+                            {% if log.status == 'completed' %}
+                                <span class="badge success">
+                                    <i class="bi bi-check-circle"></i> Завершено
+                                </span>
+                            {% elif log.status == 'error' %}
+                                <span class="badge error">
+                                    <i class="bi bi-x-circle"></i> Ошибка
+                                </span>
+                            {% else %}
+                                <span class="badge warning">
+                                    <i class="bi bi-hourglass-split"></i> В процессе
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 1rem 1.5rem;">
+                            {% if log.items_synced %}
+                                Синхронизировано: {{ log.items_synced }}
+                            {% endif %}
+                            {% if log.error_message %}
+                                <span class="text-danger">{{ log.error_message }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-3 mb-2 d-block"></i>
+                            История синхронизации пуста
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Системная информация -->
+<section class="section">
+    <h2 class="section-title mb-4">Системная информация</h2>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Состояние базы данных</h3>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="info-label">PostgreSQL</span>
+                        <span class="badge success">Подключено</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Размер БД</span>
+                        <span class="info-value">{{ db_size | default('N/A') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Последняя миграция</span>
+                        <span class="info-value">{{ last_migration | default('N/A') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">IIKO API</h3>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <span class="info-label">Статус API</span>
+                        <span class="badge success">Активно</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Последняя синхронизация</span>
+                        <span class="info-value">{{ last_sync_formatted | default('N/A') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Версия API</span>
+                        <span class="info-value">v2</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Дополнительные стили для dashboard */
+.stat-card {
+    position: relative;
+    overflow: hidden;
+    padding: 2.5rem 2rem;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--transition-base);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+}
+
+.stat-card.sales::before {
+    background: linear-gradient(135deg, var(--sales-green) 0%, var(--sales-green-light) 100%);
+}
+
+.stat-card.warehouse::before {
+    background: linear-gradient(135deg, var(--warehouse-orange) 0%, var(--warehouse-orange-light) 100%);
+}
+
+.stat-card.stores::before {
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
+}
+
+.stat-card.writeoffs::before {
+    background: linear-gradient(135deg, var(--writeoffs-red) 0%, var(--writeoffs-red-light) 100%);
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-xl);
+}
+
+.stat-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.2;
+    position: absolute;
+    right: 1.5rem;
+    top: 1.5rem;
+}
+
+.stat-card.sales .stat-icon {
+    color: var(--sales-green);
+}
+
+.stat-card.warehouse .stat-icon {
+    color: var(--warehouse-orange);
+}
+
+.stat-card.stores .stat-icon {
+    color: var(--primary-blue);
+}
+
+.stat-card.writeoffs .stat-icon {
+    color: var(--writeoffs-red);
+}
+
+.stat-trend {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+.stat-trend i {
+    font-size: 1rem;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.info-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.action-grid a {
+    text-decoration: none;
+}
+</style>
+
+<script>
+// Обработчики для кнопок быстрых действий
+document.addEventListener('DOMContentLoaded', function() {
+    const actionBtns = document.querySelectorAll('.action-btn[data-section]');
+    actionBtns.forEach(btn => {
+        if (!btn.onclick) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const section = this.getAttribute('data-section');
+                if (window.setActiveSection && window.loadSection) {
+                    window.setActiveSection(section);
+                    window.loadSection(section);
+                }
+            });
+        }
+    });
+});
+</script>

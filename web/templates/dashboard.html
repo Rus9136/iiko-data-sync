@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIKO Data Sync - Панель управления</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            color: #334155;
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Боковая панель в темном стиле */
+        .sidebar {
+            width: 280px;
+            background: #1a1a1a;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+            border-right: 1px solid #2d2d2d;
+        }
+
+        .logo {
+            padding: 24px 20px;
+            border-bottom: 1px solid #2d2d2d;
+        }
+
+        .logo h1 {
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .logo p {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .nav-menu {
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            color: #666;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0 20px 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #ccc;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .nav-item:hover {
+            background: #2d2d2d;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .nav-item-icon {
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+            fill: currentColor;
+        }
+
+        /* Основной контент */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .content-header {
+            background: white;
+            padding: 20px 32px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breadcrumbs {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0;
+        }
+
+        .content-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            background: #f59e0b;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            background: #d97706;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        /* Область с данными */
+        .data-area {
+            padding: 24px 32px;
+        }
+
+        .filters-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .table-stats {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        /* Таблица */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            background: #f9fafb;
+        }
+
+        .data-table th {
+            padding: 12px 20px;
+            text-align: left;
+            font-weight: 500;
+            color: #374151;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #111827;
+            font-size: 14px;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .data-table a {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .data-table a:hover {
+            text-decoration: underline;
+        }
+
+        /* Статусы и бейджи */
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge.active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Боковая панель -->
+        <nav class="sidebar">
+            <div class="logo">
+                <h1>IIKO Data Sync</h1>
+                <p>Система синхронизации данных</p>
+            </div>
+            
+            <div class="nav-menu">
+                <div class="nav-section">
+                    <div class="nav-section-title">Управление запасами</div>
+                    <div class="nav-item active" onclick="showStoresTable()">
+                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 2H4c-1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-1-2-2-2z"/>
+                        </svg>
+                        Склады
+                    </div>
+                    <div class="nav-item" onclick="showProductsTable()">
+                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                        </svg>
+                        Номенклатура
+                    </div>
+                    <div class="nav-item" onclick="showAccountsTable()">
+                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        Счета
+                    </div>
+                    <div class="nav-item" onclick="showWriteoffsTable()">
+                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Списания
+                    </div>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Продажи</div>
+                    <div class="nav-item" onclick="showSalesTable()">
+                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17"/>
+                        </svg>
+                        Продажи
+                    </div>
+                    <div class="nav-item" onclick="showReportsTable()">
+                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Отчеты
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <!-- Контент будет загружаться динамически -->
+            <div id="content-area">
+                <div class="content-header">
+                    <div>
+                        <div class="breadcrumbs">Загрузка...</div>
+                        <h1 class="page-title">Панель управления</h1>
+                    </div>
+                </div>
+                <div class="data-area">
+                    <p>Выберите раздел из меню слева</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Функция переключения активного пункта меню
+        function setActiveMenuItem(clickedItem) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            clickedItem.classList.add('active');
+        }
+
+        // Функция загрузки контента через AJAX
+        async function loadContent(url) {
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                document.getElementById('content-area').innerHTML = html;
+            } catch (error) {
+                console.error('Ошибка загрузки контента:', error);
+                document.getElementById('content-area').innerHTML = '<p>Ошибка загрузки данных</p>';
+            }
+        }
+
+        // Функции показа разных таблиц
+        function showStoresTable() {
+            setActiveMenuItem(event.currentTarget);
+            loadContent('/stores');
+        }
+
+        function showProductsTable() {
+            setActiveMenuItem(event.currentTarget);
+            loadContent('/products');
+        }
+
+        function showAccountsTable() {
+            setActiveMenuItem(event.currentTarget);
+            loadContent('/accounts');
+        }
+
+        function showWriteoffsTable() {
+            setActiveMenuItem(event.currentTarget);
+            loadContent('/writeoffs');
+        }
+
+        function showSalesTable() {
+            setActiveMenuItem(event.currentTarget);
+            loadContent('/sales');
+        }
+
+        function showReportsTable() {
+            setActiveMenuItem(event.currentTarget);
+            loadContent('/sales/report');
+        }
+
+        // Функции синхронизации
+        async function syncEntity(entity, extraData = {}) {
+            try {
+                const response = await fetch('/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ entity, ...extraData })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Синхронизация ${entity} завершена успешно`);
+                    // Перезагрузить текущий контент
+                    location.reload();
+                } else {
+                    alert('Ошибка синхронизации: ' + (data.message || 'Неизвестная ошибка'));
+                }
+            } catch (error) {
+                alert('Ошибка сети: ' + error.message);
+            }
+        }
+
+        // Загружаем склады по умолчанию
+        document.addEventListener('DOMContentLoaded', function() {
+            showStoresTable();
+        });
+    </script>
+</body>
+</html>
