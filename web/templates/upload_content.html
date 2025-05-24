@@ -1,9 +1,389 @@
 <div class="page-header">
     <h1 class="page-title">Загрузка данных</h1>
-    <p class="page-subtitle">Импорт данных из файлов</p>
+    <p class="page-subtitle">Синхронизация данных из IIKO API</p>
 </div>
 
-<div class="alert alert-info">
-    <i class="bi bi-info-circle"></i>
-    Раздел загрузки находится в разработке и будет доступен в следующей версии.
+<div class="row">
+    <!-- Загрузка продуктов из файла -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-file-earmark-arrow-up"></i> Загрузка продуктов из JSON
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Загрузите файл с продуктами в формате JSON</p>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">Выберите файл JSON</label>
+                        <input type="file" class="form-control" id="fileInput" accept=".json" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cloud-arrow-up"></i> Загрузить
+                    </button>
+                </form>
+                <div id="uploadResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Синхронизация продаж -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-cash-stack"></i> Синхронизация продаж
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Загрузите продажи за указанный период из IIKO API</p>
+                <form id="salesSyncForm">
+                    <div class="mb-3">
+                        <label for="salesStartDate" class="form-label">Дата начала</label>
+                        <input type="datetime-local" class="form-control" id="salesStartDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="salesEndDate" class="form-label">Дата окончания</label>
+                        <input type="datetime-local" class="form-control" id="salesEndDate" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="clearExistingSales">
+                        <label class="form-check-label" for="clearExistingSales">
+                            Очистить существующие данные за период
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-clockwise"></i> Синхронизировать
+                    </button>
+                </form>
+                <div id="salesSyncResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Синхронизация списаний -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-file-earmark-minus"></i> Синхронизация списаний
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Загрузите документы списания за указанный период из IIKO API</p>
+                <form id="writeoffSyncForm">
+                    <div class="mb-3">
+                        <label for="writeoffStartDate" class="form-label">Дата начала</label>
+                        <input type="date" class="form-control" id="writeoffStartDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="writeoffEndDate" class="form-label">Дата окончания</label>
+                        <input type="date" class="form-control" id="writeoffEndDate" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-clockwise"></i> Синхронизировать
+                    </button>
+                </form>
+                <div id="writeoffSyncResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Другие синхронизации -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="bi bi-arrow-repeat"></i> Быстрая синхронизация
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Синхронизация справочников из IIKO API</p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="syncEntity('products')">
+                        <i class="bi bi-box-seam-fill"></i> Синхронизировать продукты
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="syncEntity('stores')">
+                        <i class="bi bi-building"></i> Синхронизировать склады
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="syncEntity('departments')">
+                        <i class="bi bi-diagram-3"></i> Синхронизировать подразделения
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="syncEntity('accounts')">
+                        <i class="bi bi-wallet2"></i> Синхронизировать счета
+                    </button>
+                </div>
+                <div id="quickSyncResult" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+// Установка дат по умолчанию
+document.addEventListener('DOMContentLoaded', function() {
+    // Для продаж - последние 7 дней
+    const salesEndDate = new Date();
+    const salesStartDate = new Date();
+    salesStartDate.setDate(salesStartDate.getDate() - 7);
+    
+    document.getElementById('salesStartDate').value = formatDateTimeLocal(salesStartDate);
+    document.getElementById('salesEndDate').value = formatDateTimeLocal(salesEndDate);
+    
+    // Для списаний - последний месяц
+    const writeoffEndDate = new Date();
+    const writeoffStartDate = new Date();
+    writeoffStartDate.setMonth(writeoffStartDate.getMonth() - 1);
+    
+    document.getElementById('writeoffStartDate').value = formatDate(writeoffStartDate);
+    document.getElementById('writeoffEndDate').value = formatDate(writeoffEndDate);
+});
+
+function formatDateTimeLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Загрузка файла JSON
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    const resultDiv = document.getElementById('uploadResult');
+    
+    if (!file) {
+        showMessage(resultDiv, 'Выберите файл', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    showMessage(resultDiv, 'Загрузка файла...', 'info');
+    
+    fetch('/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showMessage(resultDiv, data.message, 'success');
+            fileInput.value = '';
+        } else {
+            showMessage(resultDiv, `Ошибка: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage(resultDiv, `Ошибка: ${error.message}`, 'error');
+    });
+});
+
+// Синхронизация продаж
+document.getElementById('salesSyncForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const startDate = document.getElementById('salesStartDate').value;
+    const endDate = document.getElementById('salesEndDate').value;
+    const clearExisting = document.getElementById('clearExistingSales').checked;
+    const resultDiv = document.getElementById('salesSyncResult');
+    
+    showMessage(resultDiv, 'Синхронизация продаж...', 'info');
+    
+    fetch('/sync', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            entity: 'sales',
+            start_date: startDate,
+            end_date: endDate,
+            clear_existing: clearExisting
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            let statsMessage = '';
+            if (data.stats) {
+                statsMessage = `<br>Создано: ${data.stats.created || 0}, Обновлено: ${data.stats.updated || 0}, Пропущено: ${data.stats.skipped || 0}, Ошибок: ${data.stats.errors || 0}`;
+            }
+            showMessage(resultDiv, data.message + statsMessage, 'success');
+        } else {
+            showMessage(resultDiv, `Ошибка: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage(resultDiv, `Ошибка: ${error.message}`, 'error');
+    });
+});
+
+// Синхронизация списаний
+document.getElementById('writeoffSyncForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const startDate = document.getElementById('writeoffStartDate').value;
+    const endDate = document.getElementById('writeoffEndDate').value;
+    const resultDiv = document.getElementById('writeoffSyncResult');
+    
+    showMessage(resultDiv, 'Синхронизация документов списания...', 'info');
+    
+    fetch('/sync', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            entity: 'writeoffs',
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            let statsMessage = '';
+            if (data.stats) {
+                statsMessage = `<br>Создано документов: ${data.stats.documents_created}, позиций: ${data.stats.items_created}`;
+            }
+            showMessage(resultDiv, data.message + statsMessage, 'success');
+        } else {
+            showMessage(resultDiv, `Ошибка: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage(resultDiv, `Ошибка: ${error.message}`, 'error');
+    });
+});
+
+// Быстрая синхронизация
+function syncEntity(entity) {
+    const resultDiv = document.getElementById('quickSyncResult');
+    const entityNames = {
+        'products': 'продуктов',
+        'stores': 'складов',
+        'departments': 'подразделений',
+        'accounts': 'счетов'
+    };
+    
+    showMessage(resultDiv, `Синхронизация ${entityNames[entity]}...`, 'info');
+    
+    fetch('/sync', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ entity: entity })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showMessage(resultDiv, data.message, 'success');
+        } else {
+            showMessage(resultDiv, `Ошибка: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        showMessage(resultDiv, `Ошибка: ${error.message}`, 'error');
+    });
+}
+
+// Вспомогательная функция для отображения сообщений
+function showMessage(element, message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    element.innerHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+}
+</script>
+
+<style>
+.card {
+    height: 100%;
+}
+
+.card-header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.form-control, .form-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.form-control:focus, .form-select:focus {
+    background: var(--bg-secondary);
+    border-color: var(--primary);
+    color: var(--text);
+    box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25);
+}
+
+.btn-outline-primary {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.alert {
+    border-radius: 8px;
+    border: 1px solid;
+}
+
+.alert-info {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+    color: rgb(59, 130, 246);
+}
+
+.alert-success {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: rgb(34, 197, 94);
+}
+
+.alert-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: rgb(239, 68, 68);
+}
+</style>

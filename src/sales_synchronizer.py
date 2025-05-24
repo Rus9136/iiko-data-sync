@@ -69,6 +69,12 @@ class SalesSynchronizer:
         :param end_date: Конечная дата для получения продаж
         :param clear_existing: Флаг, указывающий нужно ли удалить существующие данные за указанный период
         """
+        # Преобразуем формат даты если пришел datetime-local
+        if start_date and 'T' in str(start_date):
+            start_date = start_date.split('T')[0]
+        if end_date and 'T' in str(end_date):
+            end_date = end_date.split('T')[0]
+            
         logger.info(f"Starting sales synchronization from {start_date} to {end_date} (clear_existing={clear_existing})")
         
         try:

@@ -153,6 +153,13 @@ class IikoApiClient:
             end_date = datetime.now().strftime('%Y-%m-%d')
         if not start_date:
             start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            
+        # IIKO требует, чтобы конечная дата была больше начальной
+        # Если даты совпадают, добавляем один день к конечной дате
+        if start_date == end_date:
+            from datetime import datetime as dt
+            end_date_obj = dt.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
+            end_date = end_date_obj.strftime('%Y-%m-%d')
         
         sales_url = f"{self.base_url}/v2/reports/olap"
         
@@ -220,10 +227,14 @@ class IikoApiClient:
         }
         
         logger.info(f"Загрузка продаж с {start_date} по {end_date}...")
+        logger.debug(f"Request body: {json.dumps(request_body, indent=2)}")
         
         response = requests.post(sales_url, params=params, headers=headers, json=request_body)
         response_status = response.status_code
         logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        if response.status_code == 409:
+            logger.error(f"API returned 409 Conflict. Response: {response.text}")
         
         response.raise_for_status()
         
@@ -276,7 +287,6 @@ class IikoApiClient:
                 for key, value in row.items():
                     if key.endswith('Store.Name'):
                         store_name = value
-                        logger.info(f"Found Store.Name in key: {key} with value: {value}")
                         break
                 
                 # Теперь обработаем все поля

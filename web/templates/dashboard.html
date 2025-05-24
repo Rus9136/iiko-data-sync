@@ -3,274 +3,276 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IIKO Data Sync - Панель управления</title>
+    <title>Модуль аналитики - IIKO Data Sync</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
-            color: #334155;
-            line-height: 1.6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
         }
-
+        
         .container {
             display: flex;
             min-height: 100vh;
         }
-
-        /* Боковая панель в темном стиле */
+        
+        /* Боковая панель */
         .sidebar {
             width: 280px;
-            background: #1a1a1a;
+            background: white;
+            border-right: 1px solid #e0e6ed;
+            overflow-y: auto;
             position: fixed;
             height: 100vh;
-            z-index: 1000;
-            border-right: 1px solid #2d2d2d;
         }
-
+        
         .logo {
-            padding: 24px 20px;
-            border-bottom: 1px solid #2d2d2d;
-        }
-
-        .logo h1 {
-            color: white;
+            padding: 24px;
+            border-bottom: 1px solid #e0e6ed;
             font-size: 20px;
             font-weight: 600;
-            margin-bottom: 4px;
+            color: #667eea;
         }
-
-        .logo p {
-            color: #888;
-            font-size: 12px;
+        
+        .search-box {
+            padding: 16px;
+            border-bottom: 1px solid #e0e6ed;
         }
-
-        .nav-menu {
-            padding: 20px 0;
+        
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid #e0e6ed;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
         }
-
+        
+        .search-box input:focus {
+            border-color: #667eea;
+        }
+        
         .nav-section {
-            margin-bottom: 24px;
+            padding: 8px 0;
         }
-
-        .nav-section-title {
-            color: #666;
-            font-size: 11px;
-            font-weight: 500;
+        
+        .nav-header {
+            padding: 12px 24px 8px;
+            font-size: 12px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 0 20px 8px;
+            color: #8492a6;
+            letter-spacing: 0.5px;
         }
-
+        
         .nav-item {
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .nav-link {
             display: flex;
             align-items: center;
-            padding: 12px 20px;
-            color: #ccc;
+            padding: 12px 24px;
+            color: #3c4858;
             text-decoration: none;
-            transition: all 0.2s ease;
-            cursor: pointer;
+            transition: all 0.2s;
             font-size: 14px;
         }
-
-        .nav-item:hover {
-            background: #2d2d2d;
-            color: white;
+        
+        .nav-link:hover {
+            background: #f5f7fa;
+            color: #667eea;
         }
-
-        .nav-item.active {
-            background: #f59e0b;
-            color: white;
+        
+        .nav-link.active {
+            background: #f0f3ff;
+            color: #667eea;
+            font-weight: 500;
         }
-
-        .nav-item-icon {
-            width: 18px;
-            height: 18px;
+        
+        .nav-link.has-submenu::after {
+            content: '▸';
+            margin-left: auto;
+            transition: transform 0.2s;
+        }
+        
+        .nav-link.expanded::after {
+            transform: rotate(90deg);
+        }
+        
+        .nav-icon {
+            width: 20px;
+            height: 20px;
             margin-right: 12px;
-            fill: currentColor;
+            opacity: 0.7;
         }
-
+        
+        .submenu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: #fafbfc;
+        }
+        
+        .submenu.show {
+            max-height: 500px;
+        }
+        
+        .submenu .nav-link {
+            padding-left: 56px;
+            font-size: 13px;
+        }
+        
+        .badge {
+            background: #667eea;
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: auto;
+        }
+        
+        .badge.new {
+            background: #10b981;
+        }
+        
+        .badge.hot {
+            background: #ef4444;
+        }
+        
         /* Основной контент */
         .main-content {
             flex: 1;
             margin-left: 280px;
-            background: #f8f9fa;
-            min-height: 100vh;
+            padding: 32px;
         }
-
+        
         .content-header {
-            background: white;
-            padding: 20px 32px;
-            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 32px;
+        }
+        
+        .breadcrumb {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-        }
-
-        .breadcrumbs {
-            color: #6b7280;
+            gap: 8px;
             font-size: 14px;
-            margin-bottom: 4px;
+            color: #8492a6;
+            margin-bottom: 16px;
         }
-
+        
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
         .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #111827;
-            margin: 0;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 8px;
         }
-
-        .content-actions {
+        
+        .page-description {
+            font-size: 16px;
+            color: #718096;
+        }
+        
+        /* Карточки отчетов */
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+        
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e0e6ed;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            border-color: #667eea;
+        }
+        
+        .report-icon {
+            width: 48px;
+            height: 48px;
+            background: #f0f3ff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            font-size: 24px;
+        }
+        
+        .report-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1a202c;
+        }
+        
+        .report-description {
+            font-size: 14px;
+            color: #718096;
+            line-height: 1.5;
+        }
+        
+        /* Быстрые фильтры */
+        .quick-filters {
             display: flex;
             gap: 12px;
+            margin-top: 24px;
+            flex-wrap: wrap;
         }
-
-        .btn-primary {
-            background: #f59e0b;
-            color: white;
+        
+        .filter-btn {
             padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-primary:hover {
-            background: #d97706;
-        }
-
-        .btn-secondary {
-            background: #6b7280;
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-secondary:hover {
-            background: #4b5563;
-        }
-
-        /* Область с данными */
-        .data-area {
-            padding: 24px 32px;
-        }
-
-        .filters-section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .table-section {
+            border: 1px solid #e0e6ed;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-
-        .table-header {
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .table-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-        }
-
-        .table-stats {
-            color: #6b7280;
             font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-
-        /* Таблица */
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
+        
+        .filter-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
         }
-
-        .data-table thead {
-            background: #f9fafb;
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
         }
-
-        .data-table th {
-            padding: 12px 20px;
-            text-align: left;
-            font-weight: 500;
-            color: #374151;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .data-table td {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f3f4f6;
-            color: #111827;
-            font-size: 14px;
-        }
-
-        .data-table tbody tr:hover {
-            background: #f9fafb;
-        }
-
-        .data-table a {
-            color: #3b82f6;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .data-table a:hover {
-            text-decoration: underline;
-        }
-
-        /* Статусы и бейджи */
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .badge.active {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge.inactive {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        /* Адаптивность */
+        
+        /* Мобильная адаптация */
         @media (max-width: 768px) {
             .sidebar {
-                width: 100%;
                 transform: translateX(-100%);
+                transition: transform 0.3s;
             }
-
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
             .main-content {
                 margin-left: 0;
                 padding: 16px;
@@ -280,81 +282,242 @@
 </head>
 <body>
     <div class="container">
-        <!-- Боковая панель -->
-        <nav class="sidebar">
+        <!-- Боковая панель навигации -->
+        <aside class="sidebar">
             <div class="logo">
-                <h1>IIKO Data Sync</h1>
-                <p>Система синхронизации данных</p>
+                📊 Аналитика IIKO
             </div>
             
-            <div class="nav-menu">
-                <div class="nav-section">
-                    <div class="nav-section-title">Управление запасами</div>
-                    <div class="nav-item active" onclick="showStoresTable()">
-                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 2H4c-1 0-2 .9-2 2v3.01c0 .72.43 1.34 1 1.69V20c0 1.1 1.1 2 2 2h14c.9 0 2-.9 2-2V8.7c.57-.35 1-.97 1-1.69V4c0-1.1-1-2-2-2z"/>
-                        </svg>
-                        Склады
-                    </div>
-                    <div class="nav-item" onclick="showProductsTable()">
-                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                        </svg>
-                        Номенклатура
-                    </div>
-                    <div class="nav-item" onclick="showAccountsTable()">
-                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                        </svg>
-                        Счета
-                    </div>
-                    <div class="nav-item" onclick="showWriteoffsTable()">
-                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        Списания
-                    </div>
-                </div>
-
-                <div class="nav-section">
-                    <div class="nav-section-title">Продажи</div>
-                    <div class="nav-item" onclick="showSalesTable()">
-                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17"/>
-                        </svg>
-                        Продажи
-                    </div>
-                    <div class="nav-item" onclick="showReportsTable()">
-                        <svg class="nav-item-icon" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                        Отчеты
-                    </div>
-                </div>
+            <div class="search-box">
+                <input type="text" placeholder="Поиск отчетов...">
             </div>
-        </nav>
-
+            
+            <nav class="nav-section">
+                <!-- Главная -->
+                <div class="nav-header">Главная</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link active" onclick="showDashboard()">
+                        <span class="nav-icon">🏠</span>
+                        Дашборд
+                        <span class="badge hot">Live</span>
+                    </a>
+                </div>
+                
+                <!-- Продажи -->
+                <div class="nav-header">Продажи</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link has-submenu" onclick="toggleSubmenu(this)">
+                        <span class="nav-icon">💰</span>
+                        Анализ продаж
+                    </a>
+                    <div class="submenu">
+                        <a href="#" class="nav-link" onclick="showSalesReport()">Продажи по периодам</a>
+                        <a href="#" class="nav-link">Почасовая аналитика</a>
+                        <a href="#" class="nav-link">Топ товаров</a>
+                        <a href="#" class="nav-link">ABC-анализ</a>
+                        <a href="#" class="nav-link">Средний чек</a>
+                    </div>
+                </div>
+                
+                <div class="nav-item">
+                    <a href="#" class="nav-link has-submenu" onclick="toggleSubmenu(this)">
+                        <span class="nav-icon">🏪</span>
+                        По точкам продаж
+                    </a>
+                    <div class="submenu">
+                        <a href="#" class="nav-link">Сравнение точек</a>
+                        <a href="#" class="nav-link">Рейтинг эффективности</a>
+                        <a href="#" class="nav-link">Анализ ассортимента</a>
+                    </div>
+                </div>
+                
+                <!-- Списания -->
+                <div class="nav-header">Списания</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link has-submenu" onclick="toggleSubmenu(this)">
+                        <span class="nav-icon">📉</span>
+                        Анализ списаний
+                        <span class="badge">3</span>
+                    </a>
+                    <div class="submenu">
+                        <a href="#" class="nav-link">Динамика списаний</a>
+                        <a href="#" class="nav-link">По причинам</a>
+                        <a href="#" class="nav-link">Топ списываемых</a>
+                        <a href="#" class="nav-link">% от продаж</a>
+                    </div>
+                </div>
+                
+                <!-- Товары -->
+                <div class="nav-header">Товары и цены</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link has-submenu" onclick="toggleSubmenu(this)">
+                        <span class="nav-icon">📦</span>
+                        Товарная аналитика
+                    </a>
+                    <div class="submenu">
+                        <a href="#" class="nav-link" onclick="showProductsTable()">Ассортимент</a>
+                        <a href="#" class="nav-link">Категории</a>
+                        <a href="#" class="nav-link">Жизненный цикл</a>
+                        <a href="#" class="nav-link">Оборачиваемость</a>
+                    </div>
+                </div>
+                
+                <div class="nav-item">
+                    <a href="#" class="nav-link">
+                        <span class="nav-icon">💵</span>
+                        Ценообразование
+                    </a>
+                </div>
+                
+                <!-- Прогнозы -->
+                <div class="nav-header">Прогнозирование</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link">
+                        <span class="nav-icon">🔮</span>
+                        Прогноз продаж
+                        <span class="badge new">AI</span>
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        Оптимизация закупок
+                    </a>
+                </div>
+                
+                <!-- Управление -->
+                <div class="nav-header">Управление данными</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" onclick="showStoresTable()">
+                        <span class="nav-icon">🏪</span>
+                        Склады
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" onclick="showAccountsTable()">
+                        <span class="nav-icon">💼</span>
+                        Счета
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link" onclick="showWriteoffsTable()">
+                        <span class="nav-icon">📋</span>
+                        Списания
+                    </a>
+                </div>
+                
+                <!-- Настройки -->
+                <div class="nav-header">Настройки</div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link">
+                        <span class="nav-icon">📅</span>
+                        Расписание отчетов
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="#" class="nav-link">
+                        <span class="nav-icon">⚙️</span>
+                        Параметры
+                    </a>
+                </div>
+            </nav>
+        </aside>
+        
         <!-- Основной контент -->
         <main class="main-content">
-            <!-- Контент будет загружаться динамически -->
             <div id="content-area">
                 <div class="content-header">
-                    <div>
-                        <div class="breadcrumbs">Загрузка...</div>
-                        <h1 class="page-title">Панель управления</h1>
+                    <div class="breadcrumb">
+                        <a href="#">Главная</a>
+                        <span>›</span>
+                        <span>Дашборд</span>
                     </div>
+                    
+                    <h1 class="page-title">Аналитический дашборд</h1>
+                    <p class="page-description">Оперативная сводка ключевых показателей вашего бизнеса</p>
                 </div>
-                <div class="data-area">
-                    <p>Выберите раздел из меню слева</p>
+                
+                <!-- Быстрые фильтры -->
+                <div class="quick-filters">
+                    <button class="filter-btn active">Сегодня</button>
+                    <button class="filter-btn">Вчера</button>
+                    <button class="filter-btn">Неделя</button>
+                    <button class="filter-btn">Месяц</button>
+                    <button class="filter-btn">Квартал</button>
+                    <button class="filter-btn">Выбрать период</button>
+                </div>
+                
+                <!-- Сетка с карточками отчетов -->
+                <div class="reports-grid">
+                    <div class="report-card" onclick="showSalesReport()">
+                        <div class="report-icon">📊</div>
+                        <h3 class="report-title">Оперативная сводка</h3>
+                        <p class="report-description">Ключевые показатели за сегодня: продажи, списания, средний чек</p>
+                    </div>
+                    
+                    <div class="report-card" onclick="showSalesReport()">
+                        <div class="report-icon">💹</div>
+                        <h3 class="report-title">Динамика продаж</h3>
+                        <p class="report-description">График продаж с возможностью сравнения периодов</p>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">🏆</div>
+                        <h3 class="report-title">Топ товаров</h3>
+                        <p class="report-description">Самые продаваемые позиции с детализацией по категориям</p>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">⚠️</div>
+                        <h3 class="report-title">Критические остатки</h3>
+                        <p class="report-description">Товары с истекающим сроком годности и низкими остатками</p>
+                    </div>
+                    
+                    <div class="report-card" onclick="showWriteoffsTable()">
+                        <div class="report-icon">🔄</div>
+                        <h3 class="report-title">Анализ списаний</h3>
+                        <p class="report-description">Причины списаний и рекомендации по оптимизации</p>
+                    </div>
+                    
+                    <div class="report-card">
+                        <div class="report-icon">🎯</div>
+                        <h3 class="report-title">Прогноз на завтра</h3>
+                        <p class="report-description">AI-прогноз продаж и рекомендации по производству</p>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
-
+    
     <script>
+        function toggleSubmenu(element) {
+            const submenu = element.nextElementSibling;
+            const isExpanded = element.classList.contains('expanded');
+            
+            // Закрываем все подменю
+            document.querySelectorAll('.submenu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.nav-link.expanded').forEach(link => {
+                link.classList.remove('expanded');
+            });
+            
+            // Открываем текущее, если оно было закрыто
+            if (!isExpanded) {
+                submenu.classList.add('show');
+                element.classList.add('expanded');
+            }
+        }
+        
+        // Поиск по отчетам
+        document.querySelector('.search-box input').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            // Здесь можно добавить логику фильтрации отчетов
+        });
+
         // Функция переключения активного пункта меню
         function setActiveMenuItem(clickedItem) {
-            document.querySelectorAll('.nav-item').forEach(item => {
+            document.querySelectorAll('.nav-link').forEach(item => {
                 item.classList.remove('active');
             });
             clickedItem.classList.add('active');
@@ -372,34 +535,33 @@
             }
         }
 
+        // Функция показа дашборда
+        function showDashboard() {
+            loadContent('/');
+        }
+
         // Функции показа разных таблиц
         function showStoresTable() {
-            setActiveMenuItem(event.currentTarget);
             loadContent('/stores');
         }
 
         function showProductsTable() {
-            setActiveMenuItem(event.currentTarget);
             loadContent('/products');
         }
 
         function showAccountsTable() {
-            setActiveMenuItem(event.currentTarget);
             loadContent('/accounts');
         }
 
         function showWriteoffsTable() {
-            setActiveMenuItem(event.currentTarget);
             loadContent('/writeoffs');
         }
 
         function showSalesTable() {
-            setActiveMenuItem(event.currentTarget);
             loadContent('/sales');
         }
 
-        function showReportsTable() {
-            setActiveMenuItem(event.currentTarget);
+        function showSalesReport() {
             loadContent('/sales/report');
         }
 
@@ -427,11 +589,6 @@
                 alert('Ошибка сети: ' + error.message);
             }
         }
-
-        // Загружаем склады по умолчанию
-        document.addEventListener('DOMContentLoaded', function() {
-            showStoresTable();
-        });
     </script>
 </body>
 </html>
