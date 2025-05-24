@@ -385,6 +385,59 @@ class IikoApiClient:
         
         return prices_data
     
+    def get_suppliers(self) -> list:
+        """Получение списка поставщиков из API"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not self.token:
+            self.authenticate()
+            
+        suppliers_url = f"{self.base_url}/suppliers"
+        headers = {
+            'Cookie': f'key={self.token}'
+        }
+        
+        params = {
+            'key': self.token
+        }
+        
+        logger.info(f"Загрузка списка поставщиков...")
+        
+        response = requests.get(suppliers_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        # Парсим XML ответ
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(response.content)
+        
+        suppliers = []
+        for employee in root.findall('.//employee'):
+            # Берем только тех, кто является поставщиком
+            is_supplier = employee.find('supplier')
+            if is_supplier is not None and is_supplier.text == 'true':
+                supplier = {
+                    'id': employee.find('id').text if employee.find('id') is not None else None,
+                    'code': employee.find('code').text if employee.find('code') is not None else None,
+                    'name': employee.find('name').text if employee.find('name') is not None else None,
+                    'login': employee.find('login').text if employee.find('login') is not None else None,
+                    'cardNumber': employee.find('cardNumber').text if employee.find('cardNumber') is not None else None,
+                    'taxpayerIdNumber': employee.find('taxpayerIdNumber').text if employee.find('taxpayerIdNumber') is not None else None,
+                    'snils': employee.find('snils').text if employee.find('snils') is not None else None,
+                    'deleted': employee.find('deleted').text == 'true' if employee.find('deleted') is not None else False,
+                    'supplier': employee.find('supplier').text == 'true' if employee.find('supplier') is not None else False,
+                    'employee': employee.find('employee').text == 'true' if employee.find('employee') is not None else False,
+                    'client': employee.find('client').text == 'true' if employee.find('client') is not None else False,
+                    'representsStore': employee.find('representsStore').text == 'true' if employee.find('representsStore') is not None else False
+                }
+                suppliers.append(supplier)
+        
+        logger.info(f"Загружено {len(suppliers)} поставщиков")
+        return suppliers
+    
     def get_departments(self) -> list:
         """Получение списка подразделений из API"""
         import logging

@@ -305,6 +305,27 @@ class WriteoffItem(Base):
         UniqueConstraint('document_id', 'num', name='unique_writeoff_item_num'),
     )
 
+class Supplier(Base):
+    __tablename__ = 'suppliers'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    code = Column(String(50), nullable=True)
+    name = Column(String(255), nullable=False)
+    login = Column(String(100), nullable=True)
+    card_number = Column(String(50), nullable=True)
+    taxpayer_id_number = Column(String(50), nullable=True)
+    snils = Column(String(50), nullable=True)
+    deleted = Column(Boolean, default=False)
+    is_supplier = Column(Boolean, default=True)
+    is_employee = Column(Boolean, default=False)
+    is_client = Column(Boolean, default=False)
+    represents_store = Column(Boolean, default=False)
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+
 class Price(Base):
     __tablename__ = 'prices'
     

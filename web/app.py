@@ -296,6 +296,19 @@ def sync():
             synchronizer = DataSynchronizer()
             synchronizer.sync_accounts()
             message = 'Синхронизация счетов завершена успешно'
+        elif entity == 'suppliers':
+            from src.api_client import IikoApiClient
+            from config.config import CONNECTION_STRING
+            from src.supplier_synchronizer import SupplierSynchronizer
+            
+            api_client = IikoApiClient()
+            supplier_synchronizer = SupplierSynchronizer(api_client, CONNECTION_STRING)
+            result = supplier_synchronizer.sync_suppliers()
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Синхронизировано {result["total"]} поставщиков. Создано: {result["created"]}, обновлено: {result["updated"]}'
+            })
         elif entity == 'writeoffs':
             # Получаем параметры для синхронизации списаний
             start_date = data.get('start_date')
@@ -1025,6 +1038,31 @@ def sync_departments():
         import traceback
         error_message = str(e)
         app.logger.error(f"Departments sync error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
+
+@app.route('/suppliers/sync', methods=['POST'])
+def sync_suppliers():
+    """Синхронизация поставщиков"""
+    from src.api_client import IikoApiClient
+    from config.config import CONNECTION_STRING
+    from src.supplier_synchronizer import SupplierSynchronizer
+    
+    try:
+        api_client = IikoApiClient()
+        synchronizer = SupplierSynchronizer(api_client, CONNECTION_STRING)
+        
+        result = synchronizer.sync_suppliers()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Синхронизировано {result["total"]} поставщиков. Создано: {result["created"]}, обновлено: {result["updated"]}'
+        })
+        
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Suppliers sync error: {error_message}")
         app.logger.error(traceback.format_exc())
         return jsonify({'status': 'error', 'message': error_message}), 500
 
