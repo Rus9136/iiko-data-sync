@@ -39,11 +39,6 @@
                     </button>
                 </div>
             </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#syncModal">
-                    <i class="bi bi-arrow-clockwise"></i> Синхронизация
-                </button>
-            </div>
         </form>
     </div>
 </div>
@@ -178,45 +173,6 @@
     </div>
 </div>
 
-<!-- Модальное окно синхронизации -->
-<div class="modal fade" id="syncModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Синхронизация приходных накладных</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Период с:</label>
-                    <input type="date" id="syncDateFrom" class="form-control" value="{{ date_from }}">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Период по:</label>
-                    <input type="date" id="syncDateTo" class="form-control" value="{{ date_to }}">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Поставщик:</label>
-                    <select id="syncSupplier" class="form-control">
-                        <option value="">-- Выберите поставщика --</option>
-                        {% for supplier in suppliers %}
-                        <option value="{{ supplier.id }}">{{ supplier.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> Будут загружены приходные накладные за указанный период для выбранного поставщика
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary btn-sync" onclick="syncInvoices()">
-                    <i class="bi bi-arrow-clockwise"></i> Синхронизировать
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
 .summary-card {
@@ -294,80 +250,3 @@
 }
 </style>
 
-<script>
-// Функция для обработки формы
-function handleSearchForm(event, url) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const params = new URLSearchParams(formData);
-    window.location.href = url + '?' + params.toString();
-}
-
-function syncInvoices() {
-    const dateFrom = document.getElementById('syncDateFrom').value;
-    const dateTo = document.getElementById('syncDateTo').value;
-    const supplierId = document.getElementById('syncSupplier').value;
-    
-    if (!dateFrom || !dateTo) {
-        alert('Пожалуйста, укажите период');
-        return;
-    }
-    
-    if (!supplierId) {
-        alert('Пожалуйста, выберите поставщика');
-        return;
-    }
-    
-    const syncButton = document.querySelector('.btn-sync');
-    const originalText = syncButton.innerHTML;
-    syncButton.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Синхронизация...';
-    syncButton.disabled = true;
-    
-    fetch('/incoming_invoices/sync', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({
-            from_date: dateFrom,
-            to_date: dateTo,
-            supplier_id: supplierId
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        syncButton.innerHTML = originalText;
-        syncButton.disabled = false;
-        
-        if (data.status === 'success') {
-            alert(data.message);
-            // Закрываем модальное окно
-            const modal = bootstrap.Modal.getInstance(document.getElementById('syncModal'));
-            modal.hide();
-            // Перезагружаем страницу
-            location.reload();
-        } else {
-            alert('Ошибка: ' + data.message);
-        }
-    })
-    .catch(error => {
-        syncButton.innerHTML = originalText;
-        syncButton.disabled = false;
-        alert('Ошибка при синхронизации: ' + error.message);
-    });
-}
-</script>
-
-<style>
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.spin {
-    animation: spin 1s linear infinite;
-    display: inline-block;
-}
-</style>

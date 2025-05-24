@@ -408,23 +408,32 @@
                     sessionStorage.setItem('writeoffUrl', currentUrl);
                 }
                 
-                // Специальная обработка для страниц товаров - отключаем полноэкранный режим
-                if (url.includes('/product/')) {
-                    const contentContainerEl = document.querySelector('.content-container');
-                    const mainContentEl = document.querySelector('.main-content');
-                    const sidebarEl = document.querySelector('.sidebar');
-                    
-                    if (contentContainerEl) {
-                        contentContainerEl.classList.remove('full-width');
-                    }
-                    if (mainContentEl) {
-                        mainContentEl.classList.remove('full-screen');
-                    }
-                    if (sidebarEl) {
-                        sidebarEl.style.display = '';
-                        sidebarEl.style.visibility = 'visible';
-                    }
+                // Универсальная обработка для сохранения боковой панели
+                const contentContainerEl = document.querySelector('.content-container');
+                const mainContentEl = document.querySelector('.main-content');
+                const sidebarEl = document.querySelector('.sidebar');
+                
+                // Убеждаемся, что боковая панель всегда видна при обычной навигации
+                if (contentContainerEl) {
+                    contentContainerEl.classList.remove('full-width');
                 }
+                if (mainContentEl) {
+                    mainContentEl.classList.remove('full-screen');
+                }
+                if (sidebarEl) {
+                    sidebarEl.style.display = 'block';
+                    sidebarEl.style.visibility = 'visible';
+                    sidebarEl.classList.remove('hidden');
+                }
+                
+                // Дополнительная проверка через небольшую задержку
+                setTimeout(() => {
+                    const sidebarCheck = document.querySelector('.sidebar');
+                    if (sidebarCheck) {
+                        sidebarCheck.style.display = 'block';
+                        sidebarCheck.style.visibility = 'visible';
+                    }
+                }, 50);
             })
             .catch(error => {
                 console.error('Error loading page:', error);
