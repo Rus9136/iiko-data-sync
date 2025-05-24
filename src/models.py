@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, UniqueConstraint, Enum, Float, Date, Numeric
+from sqlalchemy import create_engine, Column, String, Boolean, DateTime, ForeignKey, Integer, JSON, UniqueConstraint, Enum, Float, Date, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -359,3 +359,67 @@ class Price(Base):
         UniqueConstraint('department_id', 'product_id', 'product_size_id', 'price_type', 'date_from', 'date_to', 
                         name='unique_price_entry'),
     )
+
+
+class IncomingInvoice(Base):
+    __tablename__ = 'incoming_invoices'
+    
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    transport_invoice_number = Column(String(100))
+    incoming_document_number = Column(String(100))
+    incoming_date = Column(Date)
+    use_default_document_time = Column(Boolean, default=False)
+    due_date = Column(Date, nullable=True)
+    supplier_id = Column(UUID(as_uuid=True), ForeignKey('suppliers.id'))
+    default_store_id = Column(UUID(as_uuid=True), ForeignKey('stores.id'))
+    invoice = Column(String(255))
+    date_incoming = Column(DateTime)
+    document_number = Column(String(100), nullable=False)
+    comment = Column(Text)
+    conception = Column(UUID(as_uuid=True))
+    conception_code = Column(String(50))
+    status = Column(String(50))
+    distribution_algorithm = Column(String(100))
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Связи
+    supplier = relationship('Supplier', backref='incoming_invoices')
+    store = relationship('Store', backref='incoming_invoices')
+    items = relationship('IncomingInvoiceItem', back_populates='invoice', cascade='all, delete-orphan')
+
+
+class IncomingInvoiceItem(Base):
+    __tablename__ = 'incoming_invoice_items'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey('incoming_invoices.id', ondelete='CASCADE'), nullable=False)
+    is_additional_expense = Column(Boolean, default=False)
+    actual_amount = Column(Numeric(15, 9))
+    store_id = Column(UUID(as_uuid=True), ForeignKey('stores.id'))
+    code = Column(String(50))
+    price = Column(Numeric(15, 9))
+    price_without_vat = Column(Numeric(15, 9))
+    sum = Column(Numeric(15, 9))
+    vat_percent = Column(Numeric(15, 9))
+    vat_sum = Column(Numeric(15, 9))
+    discount_sum = Column(Numeric(15, 9))
+    amount_unit = Column(UUID(as_uuid=True))
+    num = Column(Integer)
+    product_id = Column(UUID(as_uuid=True), ForeignKey('products.id'))
+    product_article = Column(String(50))
+    amount = Column(Numeric(15, 9))
+    supplier_id = Column(UUID(as_uuid=True), ForeignKey('suppliers.id'))
+    
+    # Временные метки
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Связи
+    invoice = relationship('IncomingInvoice', back_populates='items')
+    product = relationship('Product', backref='incoming_invoice_items')
+    store = relationship('Store', backref='incoming_invoice_items')
+    supplier = relationship('Supplier', backref='incoming_invoice_items')

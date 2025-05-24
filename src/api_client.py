@@ -550,3 +550,117 @@ class IikoApiClient:
         logger.info(f"После фильтрации по статусам ({', '.join(allowed_statuses)}) осталось {len(filtered_documents)} документов")
         
         return filtered_documents
+    
+    def get_incoming_invoices(self, from_date: str, to_date: str, supplier_id: str = None) -> list:
+        """Получение приходных накладных из API
+        
+        Args:
+            from_date: Дата начала в формате YYYY-MM-DD
+            to_date: Дата окончания в формате YYYY-MM-DD
+            supplier_id: ID поставщика (обязательный параметр)
+        
+        Returns:
+            list: Список приходных накладных
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not supplier_id:
+            raise ValueError("supplier_id является обязательным параметром для загрузки приходных накладных")
+        
+        if not self.token:
+            self.authenticate()
+            
+        invoices_url = f"{self.base_url}/documents/export/incomingInvoice"
+        headers = {
+            'Cookie': f'key={self.token}'
+        }
+        
+        params = {
+            'key': self.token,
+            'from': from_date,
+            'to': to_date,
+            'supplierId': supplier_id
+        }
+        
+        logger.info(f"Загрузка приходных накладных за период {from_date} - {to_date} для поставщика {supplier_id}")
+        
+        response = requests.get(invoices_url, params=params, headers=headers)
+        response_status = response.status_code
+        logger.info(f"Получен ответ от API со статусом: {response_status}")
+        
+        response.raise_for_status()
+        
+        # Парсим XML ответ
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(response.content)
+        
+        invoices_data = []
+        
+        # Обрабатываем каждый документ
+        for document in root.findall('.//document'):
+            try:
+                # Извлекаем данные документа
+                invoice_data = {
+                    'id': document.findtext('id'),
+                    'transport_invoice_number': document.findtext('transportInvoiceNumber', ''),
+                    'incoming_document_number': document.findtext('incomingDocumentNumber', ''),
+                    'incoming_date': document.findtext('incomingDate'),
+                    'use_default_document_time': document.findtext('useDefaultDocumentTime', 'false').lower() == 'true',
+                    'due_date': document.findtext('dueDate') if document.findtext('dueDate') != 'null' else None,
+                    'supplier_id': document.findtext('supplier'),
+                    'default_store_id': document.findtext('defaultStore'),
+                    'invoice': document.findtext('invoice', ''),
+                    'date_incoming': document.findtext('dateIncoming'),
+                    'document_number': document.findtext('documentNumber'),
+                    'comment': document.findtext('comment', ''),
+                    'conception': document.findtext('conception'),
+                    'conception_code': document.findtext('conceptionCode', ''),
+                    'status': document.findtext('status', ''),
+                    'distribution_algorithm': document.findtext('distributionAlgorithm', ''),
+                    'items': []
+                }
+                
+                # Обрабатываем позиции документа
+                items_element = document.find('items')
+                if items_element is not None:
+                    for item in items_element.findall('item'):
+                        item_data = {
+                            'is_additional_expense': item.findtext('isAdditionalExpense', 'false').lower() == 'true',
+                            'actual_amount': float(item.findtext('actualAmount', '0')),
+                            'store_id': item.findtext('store'),
+                            'code': item.findtext('code', ''),
+                            'price': float(item.findtext('price', '0')),
+                            'price_without_vat': float(item.findtext('priceWithoutVat', '0')),
+                            'sum': float(item.findtext('sum', '0')),
+                            'vat_percent': float(item.findtext('vatPercent', '0')),
+                            'vat_sum': float(item.findtext('vatSum', '0')),
+                            'discount_sum': float(item.findtext('discountSum', '0')),
+                            'amount_unit': item.findtext('amountUnit'),
+                            'num': int(item.findtext('num', '0')),
+                            'product_id': item.findtext('product'),
+                            'product_article': item.findtext('productArticle', ''),
+                            'amount': float(item.findtext('amount', '0')),
+                            'supplier_id': supplier_id  # Дублируем supplier_id для удобства
+                        }
+                        invoice_data['items'].append(item_data)
+                
+                invoices_data.append(invoice_data)
+                
+            except Exception as e:
+                logger.error(f"Ошибка при обработке документа: {e}")
+                continue
+        
+        logger.info(f"Загружено {len(invoices_data)} приходных накладных")
+        
+        # Фильтруем по статусам (если нужно)
+        allowed_statuses = ['NEW', 'PROCESSED']
+        filtered_invoices = []
+        
+        for invoice in invoices_data:
+            if invoice.get('status') in allowed_statuses:
+                filtered_invoices.append(invoice)
+        
+        logger.info(f"После фильтрации по статусам осталось {len(filtered_invoices)} накладных")
+        
+        return filtered_invoices

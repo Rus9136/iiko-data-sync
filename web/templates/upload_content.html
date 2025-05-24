@@ -4,26 +4,37 @@
 </div>
 
 <div class="row">
-    <!-- Загрузка продуктов из файла -->
+    <!-- Загрузка приходных накладных -->
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="bi bi-file-earmark-arrow-up"></i> Загрузка продуктов из JSON
+                    <i class="bi bi-file-earmark-arrow-down"></i> Загрузка приходных накладных
                 </h3>
             </div>
             <div class="card-body">
-                <p class="text-muted mb-3">Загрузите файл с продуктами в формате JSON</p>
-                <form id="uploadForm" enctype="multipart/form-data">
+                <p class="text-muted mb-3">Загрузите приходные накладные из IIKO API</p>
+                <form id="incomingInvoicesForm">
                     <div class="mb-3">
-                        <label for="fileInput" class="form-label">Выберите файл JSON</label>
-                        <input type="file" class="form-control" id="fileInput" accept=".json" required>
+                        <label for="invoiceStartDate" class="form-label">Дата начала</label>
+                        <input type="date" class="form-control" id="invoiceStartDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="invoiceEndDate" class="form-label">Дата окончания</label>
+                        <input type="date" class="form-control" id="invoiceEndDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="invoiceSupplier" class="form-label">Поставщик</label>
+                        <select class="form-control" id="invoiceSupplier" required>
+                            <option value="">-- Выберите поставщика --</option>
+                        </select>
+                        <small class="text-muted">Сначала синхронизируйте справочник поставщиков</small>
                     </div>
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-cloud-arrow-up"></i> Загрузить
+                        <i class="bi bi-arrow-clockwise"></i> Синхронизировать
                     </button>
                 </form>
-                <div id="uploadResult" class="mt-3"></div>
+                <div id="invoicesResult" class="mt-3"></div>
             </div>
         </div>
     </div>
@@ -159,33 +170,62 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
-// Загрузка файла JSON
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
+// Загрузка списка поставщиков при загрузке страницы
+function loadSuppliers() {
+    fetch('/suppliers/list')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('invoiceSupplier');
+            select.innerHTML = '<option value="">-- Выберите поставщика --</option>';
+            
+            if (data.suppliers && data.suppliers.length > 0) {
+                data.suppliers.forEach(supplier => {
+                    const option = document.createElement('option');
+                    option.value = supplier.id;
+                    option.textContent = supplier.name;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки поставщиков:', error);
+        });
+}
+
+// Вызываем загрузку поставщиков при загрузке страницы
+loadSuppliers();
+
+// Загрузка приходных накладных
+document.getElementById('incomingInvoicesForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    const fileInput = document.getElementById('fileInput');
-    const file = fileInput.files[0];
-    const resultDiv = document.getElementById('uploadResult');
+    const startDate = document.getElementById('invoiceStartDate').value;
+    const endDate = document.getElementById('invoiceEndDate').value;
+    const supplierId = document.getElementById('invoiceSupplier').value;
+    const resultDiv = document.getElementById('invoicesResult');
     
-    if (!file) {
-        showMessage(resultDiv, 'Выберите файл', 'error');
+    if (!supplierId) {
+        showMessage(resultDiv, 'Выберите поставщика', 'error');
         return;
     }
     
-    const formData = new FormData();
-    formData.append('file', file);
+    showMessage(resultDiv, 'Синхронизация приходных накладных...', 'info');
     
-    showMessage(resultDiv, 'Загрузка файла...', 'info');
-    
-    fetch('/upload', {
+    fetch('/incoming_invoices/sync', {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            from_date: startDate,
+            to_date: endDate,
+            supplier_id: supplierId
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
             showMessage(resultDiv, data.message, 'success');
-            fileInput.value = '';
         } else {
             showMessage(resultDiv, `Ошибка: ${data.message}`, 'error');
         }

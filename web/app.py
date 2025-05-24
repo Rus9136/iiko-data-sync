@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
 import json
 
-from src.models import Base, Product, Category, SyncLog, Store, Sale, Account, WriteoffDocument, WriteoffItem, Department, Price
+from src.models import Base, Product, Category, SyncLog, Store, Sale, Account, WriteoffDocument, WriteoffItem, Department, Price, IncomingInvoice, IncomingInvoiceItem, Supplier
 from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
@@ -1300,6 +1300,203 @@ def export_operational_report():
         app.logger.error(f"Export error: {error_message}")
         app.logger.error(traceback.format_exc())
         return jsonify({'status': 'error', 'message': error_message}), 500
+
+
+@app.route('/incoming_invoices')
+def incoming_invoices():
+    """Список приходных накладных"""
+    session = Session()
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        
+        # Фильтры
+        search = request.args.get('search', '')
+        date_from = request.args.get('date_from', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+        date_to = request.args.get('date_to', datetime.now().strftime('%Y-%m-%d'))
+        supplier_id = request.args.get('supplier_id', '')
+        
+        # Преобразуем строки даты в объекты datetime
+        from_date = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+        to_date = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+        
+        # Если указана to_date, добавляем 1 день для включения всего дня
+        if to_date:
+            to_date = to_date + timedelta(days=1)
+        
+        # Базовый запрос с join для получения названий поставщика и склада
+        query = session.query(IncomingInvoice)\
+                      .join(Supplier, IncomingInvoice.supplier_id == Supplier.id, isouter=True)\
+                      .join(Store, IncomingInvoice.default_store_id == Store.id, isouter=True)
+        
+        # Применяем фильтры
+        if from_date and to_date:
+            query = query.filter(IncomingInvoice.date_incoming >= from_date, 
+                               IncomingInvoice.date_incoming < to_date)
+        
+        if search:
+            query = query.filter(or_(
+                IncomingInvoice.document_number.ilike(f'%{search}%'),
+                IncomingInvoice.incoming_document_number.ilike(f'%{search}%'),
+                IncomingInvoice.comment.ilike(f'%{search}%') if IncomingInvoice.comment.isnot(None) else False
+            ))
+        
+        if supplier_id:
+            query = query.filter(IncomingInvoice.supplier_id == supplier_id)
+        
+        # Подсчет общего количества
+        total_count = query.count()
+        
+        # Получаем статистику по позициям
+        items_subquery = session.query(
+            IncomingInvoiceItem.invoice_id,
+            func.count(IncomingInvoiceItem.id).label('items_count'),
+            func.sum(IncomingInvoiceItem.sum).label('total_sum')
+        ).group_by(IncomingInvoiceItem.invoice_id).subquery()
+        
+        # Пагинация с дополнительной информацией
+        invoices = query.outerjoin(items_subquery, IncomingInvoice.id == items_subquery.c.invoice_id)\
+                       .add_columns(
+                           Supplier.name.label('supplier_name'),
+                           Store.name.label('store_name'),
+                           items_subquery.c.items_count,
+                           items_subquery.c.total_sum
+                       )\
+                       .order_by(IncomingInvoice.date_incoming.desc())\
+                       .offset((page - 1) * per_page)\
+                       .limit(per_page).all()
+        
+        # Получение списка поставщиков для фильтра
+        suppliers = session.query(Supplier).filter(Supplier.is_supplier == True)\
+                          .order_by(Supplier.name).all()
+        
+        template = 'incoming_invoices_content.html' if is_ajax_request() else 'incoming_invoices.html'
+        return render_template(template, 
+                             invoices=invoices,
+                             page=page,
+                             total_pages=(total_count + per_page - 1) // per_page,
+                             total=total_count,
+                             search=search,
+                             date_from=date_from,
+                             date_to=date_to,
+                             supplier_id=supplier_id,
+                             suppliers=suppliers)
+    finally:
+        session.close()
+
+
+@app.route('/incoming_invoice/<invoice_id>')
+def incoming_invoice_detail(invoice_id):
+    """Детали приходной накладной"""
+    session = Session()
+    try:
+        # Получаем накладную с дополнительной информацией
+        invoice = session.query(IncomingInvoice)\
+                        .join(Supplier, IncomingInvoice.supplier_id == Supplier.id, isouter=True)\
+                        .join(Store, IncomingInvoice.default_store_id == Store.id, isouter=True)\
+                        .add_columns(
+                            Supplier.name.label('supplier_name'),
+                            Store.name.label('store_name')
+                        )\
+                        .filter(IncomingInvoice.id == invoice_id).first()
+        
+        if not invoice:
+            return "Приходная накладная не найдена", 404
+        
+        # Получаем позиции накладной с информацией о продуктах
+        items = session.query(IncomingInvoiceItem)\
+                      .join(Product, IncomingInvoiceItem.product_id == Product.id, isouter=True)\
+                      .join(Store, IncomingInvoiceItem.store_id == Store.id, isouter=True)\
+                      .add_columns(
+                          Product.name.label('product_name'),
+                          Product.code.label('product_code'),
+                          Store.name.label('item_store_name')
+                      )\
+                      .filter(IncomingInvoiceItem.invoice_id == invoice_id)\
+                      .order_by(IncomingInvoiceItem.num).all()
+        
+        # Подсчитываем итоги
+        total_items = len(items)
+        total_sum = sum(item.IncomingInvoiceItem.sum or 0 for item in items)
+        total_amount = sum(item.IncomingInvoiceItem.amount or 0 for item in items)
+        
+        template = 'incoming_invoice_detail_content.html' if is_ajax_request() else 'incoming_invoice_detail.html'
+        return render_template(template, 
+                             invoice=invoice,
+                             items=items,
+                             total_items=total_items,
+                             total_sum=total_sum,
+                             total_amount=total_amount)
+    finally:
+        session.close()
+
+
+@app.route('/suppliers/list')
+def suppliers_list():
+    """Получение списка поставщиков для выпадающего списка"""
+    session = Session()
+    try:
+        suppliers = session.query(Supplier)\
+                          .filter(Supplier.is_supplier == True, Supplier.deleted == False)\
+                          .order_by(Supplier.name).all()
+        
+        suppliers_data = []
+        for supplier in suppliers:
+            suppliers_data.append({
+                'id': str(supplier.id),
+                'name': supplier.name
+            })
+        
+        return jsonify({'suppliers': suppliers_data})
+    finally:
+        session.close()
+
+
+@app.route('/incoming_invoices/sync', methods=['POST'])
+def sync_incoming_invoices():
+    """Синхронизация приходных накладных"""
+    from src.api_client import IikoApiClient
+    from config.config import CONNECTION_STRING
+    from src.incoming_invoice_synchronizer import IncomingInvoiceSynchronizer
+    
+    try:
+        data = request.json
+        from_date = data.get('from_date')
+        to_date = data.get('to_date')
+        supplier_id = data.get('supplier_id')
+        
+        if not from_date or not to_date:
+            return jsonify({
+                'status': 'error',
+                'message': 'Необходимо указать даты начала и окончания периода'
+            }), 400
+        
+        if not supplier_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'Необходимо выбрать поставщика'
+            }), 400
+        
+        api_client = IikoApiClient()
+        synchronizer = IncomingInvoiceSynchronizer(api_client, CONNECTION_STRING)
+        
+        result = synchronizer.sync_incoming_invoices(from_date, to_date, supplier_id)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Синхронизировано {result["total"]} накладных. '
+                      f'Создано: {result["invoices_created"]}, '
+                      f'обновлено: {result["invoices_updated"]}, '
+                      f'позиций создано: {result["items_created"]}'
+        })
+        
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Incoming invoices sync error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
+
 
 if __name__ == '__main__':
     # Создаем таблицы если их нет

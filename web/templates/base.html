@@ -90,6 +90,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a href="#" class="nav-link" data-section="incoming_invoices">
+                        <i class="bi bi-file-earmark-arrow-down"></i>
+                        <span>Приходные накладные</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="#" class="nav-link" data-section="prices">
                         <i class="bi bi-tags-fill"></i>
                         <span>Цены номенклатуры</span>
@@ -209,6 +215,7 @@
                 'prices': 'Цены',
                 'sales': 'Продажи',
                 'writeoffs': 'Документы списания',
+                'incoming_invoices': 'Приходные накладные',
                 'logs': 'История операций',
                 'upload': 'Загрузка данных'
             };
@@ -222,6 +229,7 @@
                 'prices': 'bi-tags-fill',
                 'sales': 'bi-cash-stack',
                 'writeoffs': 'bi-file-earmark-minus',
+                'incoming_invoices': 'bi-file-earmark-arrow-down',
                 'logs': 'bi-journal-text',
                 'upload': 'bi-cloud-arrow-up-fill'
             };
@@ -285,6 +293,9 @@
                     break;
                 case 'writeoffs':
                     url = '/writeoffs';
+                    break;
+                case 'incoming_invoices':
+                    url = '/incoming_invoices';
                     break;
                 case 'logs':
                     url = '/logs';
@@ -438,6 +449,7 @@
                 'prices': 'Цены',
                 'sales': 'Продажи',
                 'writeoffs': 'Документы списания',
+                'incoming_invoices': 'Приходные накладные',
                 'logs': 'История операций',
                 'upload': 'Загрузка данных'
             };
@@ -451,6 +463,7 @@
                 'prices': 'bi-tags-fill',
                 'sales': 'bi-cash-stack',
                 'writeoffs': 'bi-file-earmark-minus',
+                'incoming_invoices': 'bi-file-earmark-arrow-down',
                 'logs': 'bi-journal-text',
                 'upload': 'bi-cloud-arrow-up-fill'
             };

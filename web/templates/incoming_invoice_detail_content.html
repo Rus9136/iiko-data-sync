@@ -1,0 +1,235 @@
+<div class="invoice-detail-page">
+    <!-- Навигация и заголовок с отступами -->
+    <div style="padding: 2.5rem 2.5rem 0;">
+        <div class="mb-4">
+            <button class="btn btn-outline-secondary" onclick="goBackToInvoices()">
+                <i class="bi bi-arrow-left"></i> Вернуться к накладным
+            </button>
+        </div>
+
+        <!-- Заголовок -->
+        <div class="page-header mb-4">
+            <h1 class="page-title">Приходная накладная № {{ invoice.IncomingInvoice.document_number }}</h1>
+            <p class="page-subtitle">от {{ invoice.IncomingInvoice.date_incoming.strftime('%d.%m.%Y %H:%M') if invoice.IncomingInvoice.date_incoming else '-' }}</p>
+        </div>
+    </div>
+
+    <!-- Основной контент с отступами -->
+    <div style="padding: 0 2.5rem 2.5rem;">
+
+    <!-- Информация о документе -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Основная информация</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th style="width: 40%;">Номер документа:</th>
+                            <td><strong>{{ invoice.IncomingInvoice.document_number }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Входящий номер:</th>
+                            <td>{{ invoice.IncomingInvoice.incoming_document_number or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Дата поступления:</th>
+                            <td>
+                                {% if invoice.IncomingInvoice.date_incoming %}
+                                {{ invoice.IncomingInvoice.date_incoming.strftime('%d.%m.%Y %H:%M:%S') }}
+                                {% else %}
+                                <span class="text-muted">Не указана</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Дата прихода:</th>
+                            <td>
+                                {% if invoice.IncomingInvoice.incoming_date %}
+                                {{ invoice.IncomingInvoice.incoming_date.strftime('%d.%m.%Y') }}
+                                {% else %}
+                                <span class="text-muted">Не указана</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Статус:</th>
+                            <td>
+                                {% if invoice.IncomingInvoice.status == 'PROCESSED' %}
+                                <span class="badge bg-success">Обработан</span>
+                                {% elif invoice.IncomingInvoice.status == 'NEW' %}
+                                <span class="badge bg-warning">Новый</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ invoice.IncomingInvoice.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Контрагент и склад</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th style="width: 40%;">Поставщик:</th>
+                            <td><strong>{{ invoice.supplier_name or '-' }}</strong></td>
+                        </tr>
+                        <tr>
+                            <th>Склад:</th>
+                            <td>{{ invoice.store_name or '-' }}</td>
+                        </tr>
+                        {% if invoice.IncomingInvoice.transport_invoice_number %}
+                        <tr>
+                            <th>Транспортная накладная:</th>
+                            <td>{{ invoice.IncomingInvoice.transport_invoice_number }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if invoice.IncomingInvoice.comment %}
+                        <tr>
+                            <th>Комментарий:</th>
+                            <td class="text-muted">{{ invoice.IncomingInvoice.comment }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Товарные позиции -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Товарные позиции</h5>
+                <span class="badge bg-primary">{{ total_items }} позиций</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th width="50">№</th>
+                            <th>Код</th>
+                            <th>Наименование</th>
+                            <th class="text-end">Кол-во</th>
+                            <th class="text-end">Цена</th>
+                            <th class="text-end">НДС %</th>
+                            <th class="text-end">Сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr {% if item.IncomingInvoiceItem.is_additional_expense %}class="table-warning"{% endif %}>
+                            <td class="text-center">{{ item.IncomingInvoiceItem.num }}</td>
+                            <td>{{ item.IncomingInvoiceItem.code or item.product_code or '-' }}</td>
+                            <td>
+                                {% if item.product_name %}
+                                    <a href="/product/{{ item.IncomingInvoiceItem.product_id }}" class="text-decoration-none">
+                                        {{ item.product_name }}
+                                    </a>
+                                {% else %}
+                                    {{ item.IncomingInvoiceItem.product_article or '-' }}
+                                {% endif %}
+                                {% if item.IncomingInvoiceItem.is_additional_expense %}
+                                    <span class="badge bg-warning text-dark ms-2">Доп. расход</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ "{:,.3f}".format(item.IncomingInvoiceItem.amount or 0) }}</td>
+                            <td class="text-end">{{ "{:,.2f}".format(item.IncomingInvoiceItem.price or 0) }} ₸</td>
+                            <td class="text-end">{{ "{:,.1f}".format(item.IncomingInvoiceItem.vat_percent or 0) }}%</td>
+                            <td class="text-end fw-bold">{{ "{:,.2f}".format(item.IncomingInvoiceItem.sum or 0) }} ₸</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-secondary">
+                            <td colspan="3" class="text-end fw-bold">Итого:</td>
+                            <td class="text-end fw-bold">{{ "{:,.3f}".format(total_amount) }}</td>
+                            <td colspan="2"></td>
+                            <td class="text-end fw-bold">{{ "{:,.2f}".format(total_sum) }} ₸</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+
+<style>
+.invoice-detail-page {
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    border: none;
+}
+
+.card-header {
+    background: white;
+    border-bottom: 2px solid #e9ecef;
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table-sm th, .table-sm td {
+    padding: 0.5rem;
+}
+
+.badge {
+    padding: 0.375rem 0.75rem;
+    font-weight: 500;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    font-size: 1.125rem;
+    color: #6c757d;
+}
+
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.table-secondary {
+    background-color: #e9ecef;
+}
+</style>
+
+<script>
+function goBackToInvoices() {
+    if (typeof loadContent === 'function') {
+        loadContent('/incoming_invoices');
+    } else {
+        window.location.href = '/incoming_invoices';
+    }
+}
+</script>
