@@ -1,0 +1,130 @@
+<div class="container">
+    <header class="products-header">
+        <div>
+            <h1>Отчеты по списаниям</h1>
+            <button onclick="window.location.href='/'" class="back-btn">← Назад</button>
+        </div>
+    </header>
+
+    <div class="report-container">
+        <!-- Фильтры -->
+        <div class="filters-panel">
+            <h3>Параметры отчета</h3>
+            
+            <div class="filter-group">
+                <label for="report_type">Тип отчета:</label>
+                <select id="report_type" class="select-input">
+                    <option value="writeoffs_by_period">Списания по периодам</option>
+                    <option value="writeoffs_dynamics">Динамика списаний</option>
+                    <option value="writeoffs_by_store">Списания по складам/точкам</option>
+                    <option value="writeoffs_by_reason">Списания по причинам</option>
+                    <option value="top_writeoff_products">Топ списываемых товаров</option>
+                    <option value="writeoff_percentage">Процент списаний от поступлений</option>
+                    <option value="financial_losses">Финансовые потери</option>
+                    <option value="stores_comparison">Сравнение складов</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="date_from">С:</label>
+                <input type="date" id="date_from" value="{{ date_from }}" class="date-input">
+            </div>
+
+            <div class="filter-group">
+                <label for="date_to">По:</label>
+                <input type="date" id="date_to" value="{{ date_to }}" class="date-input">
+            </div>
+
+            <div class="filter-group">
+                <label for="store_id">Склад/Точка:</label>
+                <select id="store_id" class="select-input">
+                    <option value="">Все склады</option>
+                    {% for store in stores %}
+                    <option value="{{ store.id }}">{{ store.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="account_id">Причина списания:</label>
+                <select id="account_id" class="select-input">
+                    <option value="">Все причины</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}">{{ account.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Дополнительные параметры для разных типов отчетов -->
+            <div id="additional_params" style="display: none;">
+                <div class="filter-group period-type-group" style="display: none;">
+                    <label for="periodType">Группировка по:</label>
+                    <select id="periodType" class="select-input">
+                        <option value="day">Дням</option>
+                        <option value="week">Неделям</option>
+                        <option value="month" selected>Месяцам</option>
+                        <option value="quarter">Кварталам</option>
+                    </select>
+                </div>
+
+                <div class="filter-group sort-by-group" style="display: none;">
+                    <label for="sortBy">Сортировка:</label>
+                    <select id="sortBy" class="select-input">
+                        <option value="cost">По сумме</option>
+                        <option value="quantity">По количеству</option>
+                        <option value="frequency">По частоте</option>
+                    </select>
+                </div>
+
+                <div class="filter-group limit-rows-group" style="display: none;">
+                    <label for="limitRows">Количество записей:</label>
+                    <select id="limitRows" class="select-input">
+                        <option value="10">10</option>
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                <div class="filter-group comparison-metric-group" style="display: none;">
+                    <label for="comparisonMetric">Метрика сравнения:</label>
+                    <select id="comparisonMetric" class="select-input">
+                        <option value="cost">Сумма списаний</option>
+                        <option value="quantity">Количество списаний</option>
+                        <option value="docs_count">Количество документов</option>
+                        <option value="avg_cost">Средняя сумма на документ</option>
+                    </select>
+                </div>
+
+                <div class="filter-group dynamics-group" style="display: none;">
+                    <label>
+                        <input type="checkbox" id="showDynamics" checked>
+                        Показывать динамику изменений
+                    </label>
+                </div>
+            </div>
+
+            <button id="generateReport" class="action-btn primary">Сформировать отчет</button>
+        </div>
+
+        <!-- Результаты отчета -->
+        <div class="report-results">
+            <div id="report-header" style="display: none;">
+                <h3 id="report-title">Результаты отчета</h3>
+                <button id="exportExcel" class="action-btn secondary">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Экспорт в Excel
+                </button>
+            </div>
+            
+            <div id="report-content">
+                <!-- Здесь будет содержимое отчета -->
+                <div class="empty-state">
+                    <p>Выберите параметры и нажмите "Сформировать отчет"</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

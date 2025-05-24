@@ -573,11 +573,17 @@ class IikoApiClient:
             
         invoices_url = f"{self.base_url}/documents/export/incomingInvoice"
         headers = {
+            'Authorization': f'Bearer {self.token}',
             'Cookie': f'key={self.token}'
         }
         
+        # Преобразуем даты в нужный формат (только дата, без времени)
+        if ' ' in from_date:
+            from_date = from_date.split(' ')[0]
+        if ' ' in to_date:
+            to_date = to_date.split(' ')[0]
+        
         params = {
-            'key': self.token,
             'from': from_date,
             'to': to_date,
             'supplierId': supplier_id

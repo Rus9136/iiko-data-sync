@@ -104,17 +104,49 @@ class SalesSynchronizer:
                     last_sales = sales_data[-5:]
                     logger.debug(f"Last 5 sales: {json.dumps(last_sales, indent=2)}")
             
-            # Обработка каждой продажи
-            for sale_data in sales_data:
+            # Обработка каждой продажи с батчами для коммитов
+            batch_size = 100  # Коммитим каждые 100 записей
+            batch_count = 0
+            
+            for i, sale_data in enumerate(sales_data):
                 try:
                     self._sync_single_sale(sale_data)
+                    batch_count += 1
+                    
+                    # Коммитим батч каждые 100 записей
+                    if batch_count >= batch_size:
+                        try:
+                            self.session.commit()
+                            batch_count = 0
+                            if i % 1000 == 0:  # Логируем прогресс каждые 1000 записей
+                                logger.info(f"Processed {i+1}/{len(sales_data)} sales...")
+                        except Exception as commit_error:
+                            logger.error(f"Error committing batch: {commit_error}")
+                            self.session.rollback()
+                            self.stats["errors"] += batch_count
+                            batch_count = 0
+                            
                 except Exception as e:
-                    logger.error(f"Error syncing sale: {str(e)}")
-                    logger.error(traceback.format_exc())
+                    error_msg = str(e)
+                    logger.error(f"Error syncing sale: {error_msg}")
+                    # Для дублирующихся ключей или других constraint нарушений
+                    if any(keyword in error_msg.lower() for keyword in ["duplicate key", "unique constraint", "violates"]):
+                        logger.debug(f"Constraint violation for sale: order_num={sale_data.get('OrderNum')}, fiscal_cheque_number={sale_data.get('FiscalChequeNumber')}, dish_code={sale_data.get('DishCode')}")
+                        self.session.rollback()
+                        batch_count = 0
+                    else:
+                        logger.error(traceback.format_exc())
+                        self.session.rollback()
+                        batch_count = 0
                     self.stats["errors"] += 1
             
-            # Фиксация транзакции
-            self.session.commit()
+            # Финальный коммит для оставшихся записей
+            if batch_count > 0:
+                try:
+                    self.session.commit()
+                except Exception as commit_error:
+                    logger.error(f"Error in final commit: {commit_error}")
+                    self.session.rollback()
             
             # Запись в лог информации о синхронизации
             logger.info(f"Sales synchronization finished. Stats: {self.stats}")
@@ -125,43 +157,135 @@ class SalesSynchronizer:
         except Exception as e:
             logger.error(f"Error during sales synchronization: {str(e)}")
             logger.error(traceback.format_exc())
-            self.session.rollback()
+            try:
+                self.session.rollback()
+            except Exception as rollback_error:
+                logger.error(f"Error during rollback: {rollback_error}")
             self._log_sync_result("error", 0, error_message=str(e))
             return False
         finally:
-            self.session.close()
+            try:
+                self.session.close()
+            except Exception as close_error:
+                logger.error(f"Error closing session: {close_error}")
     
     def _sync_single_sale(self, sale_data):
         """
-        Обработка и сохранение данных одной продажи
+        Обработка и сохранение данных одной продажи с использованием upsert
         
         :param sale_data: Данные продажи из API
         """
+        from sqlalchemy.dialects.postgresql import insert
+        
         order_num = int(sale_data.get("OrderNum", 0))
         fiscal_cheque_number = sale_data.get("FiscalChequeNumber")
-        
-        # Получаем код товара и номер кассы для уникального ключа
         dish_code = sale_data.get("DishCode")
         cash_register_number = sale_data.get("CashRegisterName.Number")
         
-        # Проверяем существует ли уже такая продажа с учетом товара и кассы
-        existing_sale = self.session.query(Sale).filter(
-            Sale.order_num == order_num,
-            Sale.fiscal_cheque_number == fiscal_cheque_number,
-            Sale.dish_code == dish_code,
-            Sale.cash_register_number == cash_register_number
-        ).first()
+        try:
+            with self.session.no_autoflush:
+                # Подготавливаем данные для upsert
+                sale_dict = self._prepare_sale_data(sale_data)
+                
+                # Используем PostgreSQL UPSERT (INSERT ... ON CONFLICT ... DO UPDATE)
+                stmt = insert(Sale).values(**sale_dict)
+                
+                # При конфликте обновляем все поля кроме уникального ключа и id
+                update_dict = {key: stmt.excluded[key] for key in sale_dict.keys() 
+                              if key not in ['id', 'order_num', 'fiscal_cheque_number', 'dish_code', 'cash_register_number', 'created_at']}
+                update_dict['updated_at'] = stmt.excluded.updated_at
+                update_dict['synced_at'] = stmt.excluded.synced_at
+                
+                upsert_stmt = stmt.on_conflict_do_update(
+                    index_elements=['order_num', 'fiscal_cheque_number', 'dish_code', 'cash_register_number'],
+                    set_=update_dict
+                )
+                
+                result = self.session.execute(upsert_stmt)
+                
+                # Определяем, была ли запись создана или обновлена
+                if result.rowcount > 0:
+                    # Проверяем, была ли запись создана (INSERT) или обновлена (UPDATE)
+                    # Для PostgreSQL это сложно определить напрямую, поэтому считаем как created
+                    self.stats["created"] += 1
+                    logger.debug(f"Upserted sale: order_num={order_num}, fiscal_cheque_number={fiscal_cheque_number}")
+            
+        except Exception as e:
+            logger.error(f"Error in upsert for sale order_num={order_num}: {e}")
+            logger.error(f"Sale data: order_num={order_num}, fiscal_cheque_number={fiscal_cheque_number}, dish_code={dish_code}, cash_register_number={cash_register_number}")
+            self.stats["errors"] = self.stats.get("errors", 0) + 1
+            raise e
+    
+    def _prepare_sale_data(self, sale_data):
+        """
+        Подготавливает данные продажи в формате словаря для upsert
         
-        if existing_sale:
-            logger.debug(f"Sale with order_num={order_num}, fiscal_cheque_number={fiscal_cheque_number} already exists, updating")
-            # Обновляем существующую запись
-            self._update_sale(existing_sale, sale_data)
-            self.stats["updated"] += 1
-        else:
-            logger.debug(f"Creating new sale with order_num={order_num}, fiscal_cheque_number={fiscal_cheque_number}")
-            # Создаем новую запись
-            self._create_sale(sale_data)
-            self.stats["created"] += 1
+        :param sale_data: Данные продажи из API
+        :return: Словарь с данными для вставки/обновления
+        """
+        # Получаем связанный склад по имени, если есть
+        store_name = sale_data.get("Store.Name")
+        store_id = None
+        
+        if store_name:
+            store = self.session.query(Store).filter(Store.name == store_name).first()
+            if store:
+                store_id = store.id
+        
+        # Обработка полей с датами
+        close_time = None
+        if sale_data.get("CloseTime"):
+            try:
+                close_time = datetime.strptime(sale_data["CloseTime"], "%Y-%m-%dT%H:%M:%S.%f")
+            except ValueError:
+                try:
+                    close_time = datetime.strptime(sale_data["CloseTime"], "%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    logger.warning(f"Could not parse CloseTime: {sale_data['CloseTime']}")
+        
+        precheque_time = None
+        if sale_data.get("PrechequeTime"):
+            try:
+                precheque_time = datetime.strptime(sale_data["PrechequeTime"], "%Y-%m-%dT%H:%M:%S.%f")
+            except ValueError:
+                try:
+                    precheque_time = datetime.strptime(sale_data["PrechequeTime"], "%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    logger.warning(f"Could not parse PrechequeTime: {sale_data['PrechequeTime']}")
+        
+        # Возвращаем словарь с данными (UUID генерируется только при INSERT, исключен для UPDATE)
+        return {
+            'id': uuid.uuid4(),  # Это будет использоваться только при INSERT
+            'order_num': int(sale_data.get("OrderNum", 0)),
+            'fiscal_cheque_number': sale_data.get("FiscalChequeNumber"),
+            'cash_register_name': sale_data.get("CashRegisterName"),
+            'cash_register_serial_number': sale_data.get("CashRegisterName.CashRegisterSerialNumber"),
+            'cash_register_number': int(sale_data.get("CashRegisterName.Number", 0)) if sale_data.get("CashRegisterName.Number") else None,
+            'close_time': close_time,
+            'precheque_time': precheque_time,
+            'deleted_with_writeoff': sale_data.get("DeletedWithWriteoff", "NOT_DELETED"),
+            'department': sale_data.get("Department"),
+            'department_id': uuid.UUID(sale_data["DepartmentId"]) if sale_data.get("DepartmentId") else None,
+            # Исправлены типы данных - используем Integer как в модели
+            'dish_amount': int(sale_data.get("DishAmountInt", 0)) if sale_data.get("DishAmountInt") is not None else None,
+            'dish_code': sale_data.get("DishCode"),
+            'dish_discount_sum': int(sale_data.get("DishDiscountSumInt", 0)) if sale_data.get("DishDiscountSumInt") is not None else None,
+            'dish_measure_unit': sale_data.get("DishMeasureUnit"),
+            'dish_name': sale_data.get("DishName"),
+            'dish_return_sum': int(sale_data.get("DishReturnSumInt", 0)) if sale_data.get("DishReturnSumInt") is not None else None,
+            'dish_sum': int(sale_data.get("DishSumInt", 0)) if sale_data.get("DishSumInt") is not None else None,
+            'increase_sum': int(sale_data.get("IncreaseSumInt", 0)) if sale_data.get("IncreaseSumInt") is not None else None,
+            'order_increase_type': sale_data.get("OrderIncreaseType", ""),
+            'order_items': int(sale_data.get("OrderItems", 0)) if sale_data.get("OrderItems") else None,
+            'order_type': sale_data.get("OrderType"),
+            'pay_types': sale_data.get("PayTypes"),
+            'store_name': store_name,
+            'store_id': store_id,
+            'storned': bool(sale_data.get("Storned", False)),
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+            'synced_at': datetime.utcnow()
+        }
     
     def _create_sale(self, sale_data):
         """

@@ -49,6 +49,11 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-3">Загрузите продажи за указанный период из IIKO API</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Внимание:</strong> Загрузка продаж за длительный период (месяц и более) может занять 10-30 минут. 
+                    Рекомендуется загружать данные по несколько дней.
+                </div>
                 <form id="salesSyncForm">
                     <div class="mb-3">
                         <label for="salesStartDate" class="form-label">Дата начала</label>
@@ -64,7 +69,7 @@
                             Очистить существующие данные за период
                         </label>
                     </div>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="salesSyncBtn">
                         <i class="bi bi-arrow-clockwise"></i> Синхронизировать
                     </button>
                 </form>
@@ -243,8 +248,28 @@ document.getElementById('salesSyncForm').addEventListener('submit', function(e) 
     const endDate = document.getElementById('salesEndDate').value;
     const clearExisting = document.getElementById('clearExistingSales').checked;
     const resultDiv = document.getElementById('salesSyncResult');
+    const syncBtn = document.getElementById('salesSyncBtn');
     
-    showMessage(resultDiv, 'Синхронизация продаж...', 'info');
+    // Проверяем период и предупреждаем о длительности
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    
+    if (daysDiff > 7) {
+        if (!confirm(`Вы выбрали период ${daysDiff} дней. Синхронизация может занять ${Math.ceil(daysDiff / 7 * 2)} минут. Продолжить?`)) {
+            return;
+        }
+    }
+    
+    // Отключаем кнопку и показываем прогресс
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Синхронизация...';
+    showMessage(resultDiv, `Синхронизация продаж за ${daysDiff} дней. Пожалуйста, подождите...`, 'info');
+    
+    // Увеличиваем таймаут для больших периодов
+    const controller = new AbortController();
+    const timeoutMs = Math.max(120000, daysDiff * 30000); // Минимум 2 минуты, +30 сек за день
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     fetch('/sync', {
         method: 'POST',
@@ -256,10 +281,12 @@ document.getElementById('salesSyncForm').addEventListener('submit', function(e) 
             start_date: startDate,
             end_date: endDate,
             clear_existing: clearExisting
-        })
+        }),
+        signal: controller.signal
     })
     .then(response => response.json())
     .then(data => {
+        clearTimeout(timeoutId);
         if (data.status === 'success') {
             let statsMessage = '';
             if (data.stats) {
@@ -271,7 +298,17 @@ document.getElementById('salesSyncForm').addEventListener('submit', function(e) 
         }
     })
     .catch(error => {
-        showMessage(resultDiv, `Ошибка: ${error.message}`, 'error');
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            showMessage(resultDiv, 'Синхронизация прервана по таймауту. Попробуйте уменьшить период.', 'error');
+        } else {
+            showMessage(resultDiv, `Ошибка: ${error.message}`, 'error');
+        }
+    })
+    .finally(() => {
+        // Восстанавливаем кнопку
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Синхронизировать';
     });
 });
 
@@ -429,5 +466,18 @@ function showMessage(element, message, type) {
     background: rgba(239, 68, 68, 0.1);
     border-color: rgba(239, 68, 68, 0.3);
     color: rgb(239, 68, 68);
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.alert-warning {
+    border-left: 4px solid #ffc107;
 }
 </style>

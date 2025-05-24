@@ -283,15 +283,31 @@ def sync():
             end_date = data.get('end_date')
             clear_existing = data.get('clear_existing', False)
             
-            sales_synchronizer = SalesSynchronizer()
-            sales_synchronizer.sync_sales(start_date, end_date, clear_existing)
-            message = 'Синхронизация продаж завершена успешно'
-            
-            return jsonify({
-                'status': 'success', 
-                'message': message,
-                'stats': sales_synchronizer.stats
-            })
+            try:
+                sales_synchronizer = SalesSynchronizer()
+                result = sales_synchronizer.sync_sales(start_date, end_date, clear_existing)
+                
+                if result:
+                    message = f'Синхронизация продаж завершена успешно. ' \
+                             f'Создано: {sales_synchronizer.stats.get("created", 0)}, ' \
+                             f'обновлено: {sales_synchronizer.stats.get("updated", 0)}, ' \
+                             f'ошибок: {sales_synchronizer.stats.get("errors", 0)}'
+                else:
+                    message = 'Синхронизация продаж завершилась с ошибками'
+                
+                return jsonify({
+                    'status': 'success', 
+                    'message': message,
+                    'stats': sales_synchronizer.stats
+                })
+            except Exception as sales_error:
+                import traceback
+                app.logger.error(f"Sales sync error: {sales_error}")
+                app.logger.error(traceback.format_exc())
+                return jsonify({
+                    'status': 'error', 
+                    'message': f'Ошибка синхронизации продаж: {str(sales_error)}'
+                }), 500
         elif entity == 'accounts':
             synchronizer = DataSynchronizer()
             synchronizer.sync_accounts()
@@ -957,6 +973,100 @@ def writeoffs_delete():
 def sales_report():
     """Отчет по продажам с группировкой"""
     return get_sales_report()
+
+@app.route('/writeoffs/report')
+def writeoffs_report():
+    """Страница отчетов по списаниям"""
+    session = Session()
+    try:
+        # Получаем списки для фильтров
+        stores = session.query(Store).order_by(Store.name).all()
+        accounts = session.query(Account).filter(Account.deleted == False).order_by(Account.name).all()
+        
+        # Устанавливаем даты по умолчанию
+        default_date_from = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        default_date_to = datetime.now().strftime('%Y-%m-%d')
+        
+        return render_template('writeoffs_report.html',
+                             stores=stores,
+                             accounts=accounts,
+                             date_from=default_date_from,
+                             date_to=default_date_to)
+    finally:
+        session.close()
+
+@app.route('/api/writeoff-reports', methods=['POST'])
+def api_writeoff_reports():
+    """API для формирования отчетов по списаниям"""
+    try:
+        data = request.json
+        report_type = data.get('report_type')
+        
+        if not report_type:
+            return jsonify({'status': 'error', 'message': 'Не указан тип отчета'}), 400
+        
+        # Создаем генератор отчетов
+        from web.writeoff_report_controller import WriteoffReportsGenerator
+        generator = WriteoffReportsGenerator(Session)
+        
+        # Формируем отчет
+        result = generator.generate_report(report_type, data)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Writeoff reports error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
+
+@app.route('/api/writeoff-reports/export', methods=['GET'])
+def export_writeoff_report():
+    """Экспорт отчета по списаниям в Excel"""
+    try:
+        from flask import send_file
+        from web.writeoff_report_controller import WriteoffReportsGenerator
+        
+        report_type = request.args.get('report_type')
+        if not report_type:
+            return jsonify({'status': 'error', 'message': 'Не указан тип отчета'}), 400
+        
+        # Создаем генератор отчетов
+        generator = WriteoffReportsGenerator(Session)
+        
+        # Экспортируем отчет
+        excel_file = generator.export_to_excel(report_type, request.args.to_dict())
+        
+        if not excel_file:
+            return jsonify({'status': 'error', 'message': 'Не удалось создать файл отчета'}), 500
+        
+        report_titles = {
+            'writeoffs_by_period': 'Списания_по_периодам',
+            'writeoffs_by_store': 'Списания_по_складам',
+            'writeoffs_by_reason': 'Списания_по_причинам',
+            'top_writeoff_products': 'Топ_списываемых_товаров',
+            'writeoff_percentage': 'Процент_списаний',
+            'financial_losses': 'Финансовые_потери',
+            'stores_comparison': 'Сравнение_складов',
+            'writeoffs_dynamics': 'Динамика_списаний'
+        }
+        
+        filename = f"{report_titles.get(report_type, 'Отчет_по_списаниям')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        import traceback
+        error_message = str(e)
+        app.logger.error(f"Export writeoff report error: {error_message}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_message}), 500
 
 @app.route('/departments')
 def departments():

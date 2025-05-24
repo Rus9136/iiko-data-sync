@@ -131,11 +131,13 @@ class IncomingInvoiceSynchronizer:
         # Преобразуем строковые даты в объекты datetime/date
         incoming_date = None
         if invoice_data.get('incoming_date'):
-            incoming_date = datetime.strptime(invoice_data['incoming_date'], '%Y-%m-%d').date()
+            date_str = invoice_data['incoming_date'].replace('T00:00:00', '').split('T')[0]
+            incoming_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         due_date = None
         if invoice_data.get('due_date'):
-            due_date = datetime.strptime(invoice_data['due_date'], '%Y-%m-%d').date()
+            date_str = invoice_data['due_date'].replace('T00:00:00', '').split('T')[0]
+            due_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         date_incoming = None
         if invoice_data.get('date_incoming'):
@@ -180,12 +182,14 @@ class IncomingInvoiceSynchronizer:
         invoice.incoming_document_number = invoice_data.get('incoming_document_number')
         
         if invoice_data.get('incoming_date'):
-            invoice.incoming_date = datetime.strptime(invoice_data['incoming_date'], '%Y-%m-%d').date()
+            date_str = invoice_data['incoming_date'].replace('T00:00:00', '').split('T')[0]
+            invoice.incoming_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         
         invoice.use_default_document_time = invoice_data.get('use_default_document_time', False)
         
         if invoice_data.get('due_date'):
-            invoice.due_date = datetime.strptime(invoice_data['due_date'], '%Y-%m-%d').date()
+            date_str = invoice_data['due_date'].replace('T00:00:00', '').split('T')[0]
+            invoice.due_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         else:
             invoice.due_date = None
         
