@@ -14,7 +14,6 @@ from src.synchronizer import DataSynchronizer
 from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
 from config.config import DATABASE_CONFIG
-from web.report_controller import get_sales_report
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -969,121 +968,7 @@ def writeoffs_delete():
         app.logger.error(traceback.format_exc())
         return jsonify({'status': 'error', 'message': error_message}), 500
 
-@app.route('/sales/report')
-def sales_report():
-    """Отчет по продажам с группировкой"""
-    return get_sales_report()
 
-@app.route('/writeoffs/report')
-def writeoffs_report():
-    """Страница отчетов по списаниям"""
-    session = Session()
-    try:
-        # Получаем списки для фильтров
-        stores = session.query(Store).order_by(Store.name).all()
-        accounts = session.query(Account).filter(Account.deleted == False).order_by(Account.name).all()
-        
-        # Устанавливаем даты по умолчанию
-        default_date_from = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
-        default_date_to = datetime.now().strftime('%Y-%m-%d')
-        
-        return render_template('writeoffs_report.html',
-                             stores=stores,
-                             accounts=accounts,
-                             date_from=default_date_from,
-                             date_to=default_date_to)
-    finally:
-        session.close()
-
-@app.route('/api/writeoff-reports', methods=['POST'])
-def api_writeoff_reports():
-    """API для формирования отчетов по списаниям"""
-    app.logger.info("=== Writeoff reports API called ===")
-    try:
-        data = request.json
-        app.logger.info(f"Request data: {data}")
-        
-        report_type = data.get('report_type')
-        app.logger.info(f"Report type: {report_type}")
-        
-        if not report_type:
-            app.logger.error("No report type specified")
-            return jsonify({'status': 'error', 'message': 'Не указан тип отчета'}), 400
-        
-        # Создаем генератор отчетов
-        app.logger.info("Creating report generator...")
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from web.writeoff_report_controller import WriteoffReportsGenerator
-        generator = WriteoffReportsGenerator(Session)
-        app.logger.info("Report generator created")
-        
-        # Формируем отчет
-        app.logger.info(f"Generating report of type: {report_type}")
-        result = generator.generate_report(report_type, data)
-        app.logger.info(f"Report generated successfully. Status: {result.get('status')}, Records: {result.get('total_records', 0)}")
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        import traceback
-        error_message = str(e)
-        app.logger.error(f"=== Writeoff reports error ===")
-        app.logger.error(f"Error type: {type(e).__name__}")
-        app.logger.error(f"Error message: {error_message}")
-        app.logger.error(f"Traceback:\n{traceback.format_exc()}")
-        return jsonify({'status': 'error', 'message': error_message}), 500
-
-@app.route('/api/writeoff-reports/export', methods=['GET'])
-def export_writeoff_report():
-    """Экспорт отчета по списаниям в Excel"""
-    try:
-        from flask import send_file
-        from web.writeoff_report_controller import WriteoffReportsGenerator
-        
-        report_type = request.args.get('report_type')
-        if not report_type:
-            return jsonify({'status': 'error', 'message': 'Не указан тип отчета'}), 400
-        
-        # Создаем генератор отчетов
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        generator = WriteoffReportsGenerator(Session)
-        
-        # Экспортируем отчет
-        excel_file = generator.export_to_excel(report_type, request.args.to_dict())
-        
-        if not excel_file:
-            return jsonify({'status': 'error', 'message': 'Не удалось создать файл отчета'}), 500
-        
-        report_titles = {
-            'writeoffs_by_period': 'Списания_по_периодам',
-            'writeoffs_by_store': 'Списания_по_складам',
-            'writeoffs_by_reason': 'Списания_по_причинам',
-            'top_writeoff_products': 'Топ_списываемых_товаров',
-            'writeoff_percentage': 'Процент_списаний',
-            'financial_losses': 'Финансовые_потери',
-            'stores_comparison': 'Сравнение_складов',
-            'writeoffs_dynamics': 'Динамика_списаний'
-        }
-        
-        filename = f"{report_titles.get(report_type, 'Отчет_по_списаниям')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        
-        return send_file(
-            excel_file,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=filename
-        )
-        
-    except Exception as e:
-        import traceback
-        error_message = str(e)
-        app.logger.error(f"Export writeoff report error: {error_message}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': error_message}), 500
 
 @app.route('/departments')
 def departments():
@@ -1271,10 +1156,6 @@ def sync_prices():
         app.logger.error(traceback.format_exc())
         return jsonify({'status': 'error', 'message': error_message}), 500
 
-@app.route('/operational-summary')
-def operational_summary():
-    """Страница оперативной сводки"""
-    return render_template('operational_summary.html')
 
 @app.route('/api/departments')
 def api_departments():
@@ -1302,128 +1183,6 @@ def api_departments():
     finally:
         session.close()
 
-@app.route('/api/operational-reports', methods=['POST', 'GET'])
-def api_operational_reports():
-    """API для формирования оперативных отчетов"""
-    if request.method == 'GET' and request.args.get('export') == 'excel':
-        return export_operational_report()
-    
-    try:
-        if request.method == 'POST':
-            data = request.json
-        else:
-            data = request.args.to_dict()
-        
-        report_type = data.get('report_type')
-        date_from = data.get('date_from')
-        date_to = data.get('date_to')
-        department_id = data.get('department_id')
-        
-        if not report_type or not date_from or not date_to:
-            return jsonify({'status': 'error', 'message': 'Не все обязательные параметры указаны'}), 400
-        
-        # Создаем генератор отчетов
-        from web.operational_reports import OperationalReportsGenerator
-        generator = OperationalReportsGenerator(Session)
-        
-        # Формируем отчет в зависимости от типа
-        result = generator.generate_report(report_type, {
-            'date_from': date_from,
-            'date_to': date_to,
-            'department_id': department_id,
-            **{k: v for k, v in data.items() if k not in ['report_type', 'date_from', 'date_to', 'department_id']}
-        })
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        import traceback
-        error_message = str(e)
-        app.logger.error(f"Operational reports error: {error_message}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': error_message}), 500
-
-def export_operational_report():
-    """Экспорт оперативного отчета в Excel"""
-    try:
-        import pandas as pd
-        from io import BytesIO
-        from flask import send_file
-        
-        data = request.args.to_dict()
-        report_type = data.get('report_type')
-        
-        # Создаем генератор отчетов
-        from web.operational_reports import OperationalReportsGenerator
-        generator = OperationalReportsGenerator(Session)
-        
-        # Формируем отчет
-        result = generator.generate_report(report_type, data)
-        
-        if not result.get('data'):
-            return jsonify({'status': 'error', 'message': 'Нет данных для экспорта'}), 400
-        
-        # Создаем DataFrame
-        df_data = []
-        for row in result['data']:
-            df_row = {}
-            for col in result['columns']:
-                df_row[col['title']] = row.get(col['key'], '')
-            df_data.append(df_row)
-        
-        df = pd.DataFrame(df_data)
-        
-        # Создаем Excel файл в памяти
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, sheet_name='Отчет', index=False)
-            
-            # Форматирование
-            workbook = writer.book
-            worksheet = writer.sheets['Отчет']
-            
-            # Заголовки
-            header_format = workbook.add_format({
-                'bold': True,
-                'text_wrap': True,
-                'valign': 'top',
-                'fg_color': '#D7E4BC',
-                'border': 1
-            })
-            
-            for col_num, value in enumerate(df.columns.values):
-                worksheet.write(0, col_num, value, header_format)
-                worksheet.set_column(col_num, col_num, len(str(value)) + 2)
-        
-        output.seek(0)
-        
-        report_titles = {
-            'sales_by_period': 'Продажи_по_периодам',
-            'sales_by_hour': 'Почасовая_аналитика',
-            'sales_by_weekday': 'Продажи_по_дням_недели',
-            'sales_by_department': 'Продажи_по_точкам',
-            'departments_comparison': 'Сравнение_точек',
-            'top_products': 'Топ_товаров',
-            'bottom_products': 'Антитоп_товаров',
-            'average_check': 'Средний_чек',
-            'check_analysis': 'Анализ_чеков'
-        }
-        
-        filename = f"{report_titles.get(report_type, 'Отчет')}_{data.get('date_from', '')}_{data.get('date_to', '')}.xlsx"
-        
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=filename
-        )
-        
-    except Exception as e:
-        import traceback
-        error_message = str(e)
-        app.logger.error(f"Export error: {error_message}")
-        app.logger.error(traceback.format_exc())
-        return jsonify({'status': 'error', 'message': error_message}), 500
 
 
 @app.route('/incoming_invoices')
