@@ -998,27 +998,41 @@ def writeoffs_report():
 @app.route('/api/writeoff-reports', methods=['POST'])
 def api_writeoff_reports():
     """API для формирования отчетов по списаниям"""
+    app.logger.info("=== Writeoff reports API called ===")
     try:
         data = request.json
+        app.logger.info(f"Request data: {data}")
+        
         report_type = data.get('report_type')
+        app.logger.info(f"Report type: {report_type}")
         
         if not report_type:
+            app.logger.error("No report type specified")
             return jsonify({'status': 'error', 'message': 'Не указан тип отчета'}), 400
         
         # Создаем генератор отчетов
+        app.logger.info("Creating report generator...")
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         from web.writeoff_report_controller import WriteoffReportsGenerator
         generator = WriteoffReportsGenerator(Session)
+        app.logger.info("Report generator created")
         
         # Формируем отчет
+        app.logger.info(f"Generating report of type: {report_type}")
         result = generator.generate_report(report_type, data)
+        app.logger.info(f"Report generated successfully. Status: {result.get('status')}, Records: {result.get('total_records', 0)}")
         
         return jsonify(result)
         
     except Exception as e:
         import traceback
         error_message = str(e)
-        app.logger.error(f"Writeoff reports error: {error_message}")
-        app.logger.error(traceback.format_exc())
+        app.logger.error(f"=== Writeoff reports error ===")
+        app.logger.error(f"Error type: {type(e).__name__}")
+        app.logger.error(f"Error message: {error_message}")
+        app.logger.error(f"Traceback:\n{traceback.format_exc()}")
         return jsonify({'status': 'error', 'message': error_message}), 500
 
 @app.route('/api/writeoff-reports/export', methods=['GET'])
@@ -1033,6 +1047,9 @@ def export_writeoff_report():
             return jsonify({'status': 'error', 'message': 'Не указан тип отчета'}), 400
         
         # Создаем генератор отчетов
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         generator = WriteoffReportsGenerator(Session)
         
         # Экспортируем отчет

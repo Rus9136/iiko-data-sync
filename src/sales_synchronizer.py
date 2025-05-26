@@ -177,6 +177,13 @@ class SalesSynchronizer:
         """
         from sqlalchemy.dialects.postgresql import insert
         
+        # Проверяем, не является ли чек отмененным
+        is_storned = sale_data.get("Storned", "").upper() == "TRUE" or sale_data.get("Storned") is True
+        if is_storned:
+            logger.debug(f"Skipping storned sale: order_num={sale_data.get('OrderNum')}")
+            self.stats["skipped"] += 1
+            return
+        
         order_num = int(sale_data.get("OrderNum", 0))
         fiscal_cheque_number = sale_data.get("FiscalChequeNumber")
         dish_code = sale_data.get("DishCode")
@@ -281,7 +288,7 @@ class SalesSynchronizer:
             'pay_types': sale_data.get("PayTypes"),
             'store_name': store_name,
             'store_id': store_id,
-            'storned': bool(sale_data.get("Storned", False)),
+            'storned': sale_data.get("Storned", "").upper() == "TRUE" or sale_data.get("Storned") is True,
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow(),
             'synced_at': datetime.utcnow()

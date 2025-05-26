@@ -15,12 +15,12 @@ sys.path.insert(0, project_root)
 def open_browser():
     """Открывает браузер через 2 секунды после запуска"""
     time.sleep(2)
-    webbrowser.open('http://127.0.0.1:8080')
+    webbrowser.open('http://127.0.0.1:8081')
 
 if __name__ == '__main__':
     from web.app import app
     
-    port = 8080
+    port = 8081
     host = '127.0.0.1'
     
     print(f"🚀 Запуск веб-интерфейса IIKO Data Sync...")

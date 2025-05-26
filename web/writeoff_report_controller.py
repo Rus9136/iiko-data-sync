@@ -27,6 +27,10 @@ class WriteoffReportsGenerator:
     
     def generate_report(self, report_type, params):
         """Главный метод для генерации отчетов по списаниям"""
+        logger.info(f"=== generate_report called ===")
+        logger.info(f"Report type: {report_type}")
+        logger.info(f"Params: {params}")
+        
         method_map = {
             'writeoffs_by_period': self.writeoffs_by_period,
             'writeoffs_by_store': self.writeoffs_by_store,
@@ -38,13 +42,22 @@ class WriteoffReportsGenerator:
             'writeoffs_dynamics': self.writeoffs_dynamics
         }
         
+        logger.info(f"Available report types: {list(method_map.keys())}")
+        
         if report_type not in method_map:
+            logger.error(f"Unknown report type: {report_type}")
             return {'status': 'error', 'message': f'Неизвестный тип отчета: {report_type}'}
         
         try:
-            return method_map[report_type](params)
+            logger.info(f"Calling method: {method_map[report_type].__name__}")
+            result = method_map[report_type](params)
+            logger.info(f"Method returned successfully. Result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+            return result
         except Exception as e:
-            logger.error(f"Ошибка при генерации отчета {report_type}: {str(e)}")
+            logger.error(f"=== Error in generate_report ===")
+            logger.error(f"Error type: {type(e).__name__}")
+            logger.error(f"Error message: {str(e)}")
+            logger.error(f"Traceback:", exc_info=True)
             return {'status': 'error', 'message': str(e)}
     
     def _get_base_query(self, params):
@@ -75,8 +88,12 @@ class WriteoffReportsGenerator:
     
     def writeoffs_by_period(self, params):
         """Списания по периодам с динамикой"""
+        logger.info("=== writeoffs_by_period called ===")
+        logger.info(f"Params: {params}")
+        
         period_type = params.get('periodType', 'day')
         show_dynamics = params.get('showDynamics', 'true') == 'true'
+        logger.info(f"Period type: {period_type}, Show dynamics: {show_dynamics}")
         
         # Определяем группировку по периоду
         if period_type == 'day':

@@ -319,9 +319,36 @@
                 // Re-initialize any scripts in the loaded content
                 const scripts = mainContent.querySelectorAll('script');
                 scripts.forEach(script => {
-                    const newScript = document.createElement('script');
-                    newScript.textContent = script.textContent;
-                    script.parentNode.replaceChild(newScript, script);
+                    try {
+                        const newScript = document.createElement('script');
+                        
+                        if (script.src) {
+                            // Для внешних скриптов
+                            newScript.src = script.src;
+                            newScript.async = false;
+                        } else if (script.textContent && script.textContent.trim()) {
+                            // Для встроенных скриптов
+                            newScript.textContent = script.textContent;
+                        }
+                        
+                        // Копируем все атрибуты
+                        Array.from(script.attributes).forEach(attr => {
+                            if (attr.name !== 'src') {
+                                newScript.setAttribute(attr.name, attr.value);
+                            }
+                        });
+                        
+                        // Удаляем старый скрипт и вставляем новый
+                        if (script.parentNode) {
+                            script.parentNode.insertBefore(newScript, script);
+                            script.parentNode.removeChild(script);
+                        } else {
+                            document.body.appendChild(newScript);
+                        }
+                    } catch (e) {
+                        console.error('Error processing script:', e);
+                        console.error('Script:', script);
+                    }
                 });
                 
                 // Add event listeners to internal links
@@ -373,6 +400,12 @@
         }
         
         function loadInternalPage(url) {
+            // Для страницы отчетов используем прямой переход
+            if (url.includes('/writeoffs/report') || url.includes('/operational-summary')) {
+                window.location.href = url;
+                return;
+            }
+            
             const mainContent = document.querySelector('.content-container');
             mainContent.innerHTML = '<div class="loading-spinner"><i class="bi bi-hourglass-split"></i> Загрузка...</div>';
             
@@ -391,9 +424,36 @@
                 // Re-initialize any scripts in the loaded content
                 const scripts = mainContent.querySelectorAll('script');
                 scripts.forEach(script => {
-                    const newScript = document.createElement('script');
-                    newScript.textContent = script.textContent;
-                    script.parentNode.replaceChild(newScript, script);
+                    try {
+                        const newScript = document.createElement('script');
+                        
+                        if (script.src) {
+                            // Для внешних скриптов
+                            newScript.src = script.src;
+                            newScript.async = false;
+                        } else if (script.textContent && script.textContent.trim()) {
+                            // Для встроенных скриптов
+                            newScript.textContent = script.textContent;
+                        }
+                        
+                        // Копируем все атрибуты
+                        Array.from(script.attributes).forEach(attr => {
+                            if (attr.name !== 'src') {
+                                newScript.setAttribute(attr.name, attr.value);
+                            }
+                        });
+                        
+                        // Удаляем старый скрипт и вставляем новый
+                        if (script.parentNode) {
+                            script.parentNode.insertBefore(newScript, script);
+                            script.parentNode.removeChild(script);
+                        } else {
+                            document.body.appendChild(newScript);
+                        }
+                    } catch (e) {
+                        console.error('Error processing script:', e);
+                        console.error('Script:', script);
+                    }
                 });
                 
                 // Setup internal links again for new content

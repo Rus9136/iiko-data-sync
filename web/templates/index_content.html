@@ -195,11 +195,8 @@
     
     // Показать отчеты по списаниям
     function showWriteoffsReport() {
-        if (typeof loadInternalPage === 'function') {
-            loadInternalPage('/writeoffs/report');
-        } else {
-            window.location.href = '/writeoffs/report';
-        }
+        // Всегда используем прямой переход для отчетов
+        window.location.href = '/writeoffs/report';
     }
     
     // Показать оперативную сводку

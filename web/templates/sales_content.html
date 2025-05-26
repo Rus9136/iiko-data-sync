@@ -166,7 +166,7 @@
             <ul class="pagination justify-content-center">
                 {% if page > 1 %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page - 1 }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">← Назад</a>
+                    <a class="page-link" href="#" onclick="loadSalesPage({{ page - 1 }}, event)">← Назад</a>
                 </li>
                 {% endif %}
                 
@@ -175,7 +175,7 @@
                 
                 {% if start_page > 1 %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">1</a>
+                        <a class="page-link" href="#" onclick="loadSalesPage(1, event)">1</a>
                     </li>
                     {% if start_page > 2 %}
                         <li class="page-item disabled">
@@ -191,7 +191,7 @@
                         </li>
                     {% else %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ p }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">{{ p }}</a>
+                            <a class="page-link" href="#" onclick="loadSalesPage({{ p }}, event)">{{ p }}</a>
                         </li>
                     {% endif %}
                 {% endfor %}
@@ -203,13 +203,13 @@
                         </li>
                     {% endif %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ total_pages }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">{{ total_pages }}</a>
+                        <a class="page-link" href="#" onclick="loadSalesPage({{ total_pages }}, event)">{{ total_pages }}</a>
                     </li>
                 {% endif %}
                 
                 {% if page < total_pages %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page + 1 }}&date_from={{ date_from }}&date_to={{ date_to }}&store_id={{ store_id }}&sale_type={{ sale_type }}&search={{ search }}">Вперед →</a>
+                    <a class="page-link" href="#" onclick="loadSalesPage({{ page + 1 }}, event)">Вперед →</a>
                 </li>
                 {% endif %}
             </ul>
@@ -315,3 +315,36 @@
     color: white;
 }
 </style>
+
+<script>
+function loadSalesPage(page, event) {
+    event.preventDefault();
+    
+    // Получаем текущие параметры фильтрации из формы
+    const dateFrom = document.getElementById('date_from')?.value || '';
+    const dateTo = document.getElementById('date_to')?.value || '';
+    const storeId = document.getElementById('store_id')?.value || '';
+    const saleType = document.getElementById('sale_type')?.value || '';
+    const search = document.getElementById('search')?.value || '';
+    
+    // Формируем URL с параметрами
+    const params = new URLSearchParams({
+        page: page,
+        date_from: dateFrom,
+        date_to: dateTo,
+        store_id: storeId,
+        sale_type: saleType,
+        search: search
+    });
+    
+    const url = `/sales?${params.toString()}`;
+    
+    // Загружаем новую страницу через AJAX
+    if (typeof loadContent === 'function') {
+        loadContent(url);
+    } else {
+        // Fallback для случаев, когда loadContent недоступна
+        window.location.href = url;
+    }
+}
+</script>

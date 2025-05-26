@@ -10,15 +10,7 @@
     <p class="page-description">Оперативная сводка ключевых показателей вашего бизнеса</p>
 </div>
 
-<!-- Быстрые фильтры -->
-<div class="quick-filters">
-    <button class="filter-btn active">Сегодня</button>
-    <button class="filter-btn">Вчера</button>
-    <button class="filter-btn">Неделя</button>
-    <button class="filter-btn">Месяц</button>
-    <button class="filter-btn">Квартал</button>
-    <button class="filter-btn">Выбрать период</button>
-</div>
+
 
 <!-- Сетка с карточками отчетов -->
 <div class="reports-grid">
@@ -46,7 +38,7 @@
         <p class="report-description">Товары с истекающим сроком годности и низкими остатками</p>
     </div>
     
-    <div class="report-card" onclick="window.location.href='/writeoffs/report'">
+    <div class="report-card" onclick="loadInternalPage('/writeoffs/report')">
         <div class="report-icon">🔄</div>
         <h3 class="report-title">Анализ списаний</h3>
         <p class="report-description">Причины списаний и рекомендации по оптимизации</p>
@@ -167,6 +159,7 @@
     color: white;
     border-color: #667eea;
 }
+
 </style>
 
 <script>
