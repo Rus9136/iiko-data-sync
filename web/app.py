@@ -15,10 +15,16 @@ from src.store_synchronizer import StoreSynchronizer
 from src.sales_synchronizer import SalesSynchronizer
 from config.config import DATABASE_CONFIG
 
+# Import reports blueprint
+from web.reports.reports_controller import reports_bp
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 CORS(app)  # Включаем CORS для всех маршрутов
+
+# Register reports blueprint
+app.register_blueprint(reports_bp)
 
 # Подключение к базе данных
 db_url = f"postgresql://{DATABASE_CONFIG['user']}:{DATABASE_CONFIG['password']}@{DATABASE_CONFIG['host']}:{DATABASE_CONFIG['port']}/{DATABASE_CONFIG['database']}"

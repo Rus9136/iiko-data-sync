@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Модуль отчетности - IIKO Data Sync{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='reports.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar from main app -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <ul class="sidebar-nav">
+                <li class="nav-item">
+                    <a href="/" class="nav-link">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Панель управления</span>
+                    </a>
+                </li>
+                
+                <!-- Справочники -->
+                <li class="nav-section-header">
+                    <i class="bi bi-book"></i>
+                    <span>Справочники</span>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('products')">
+                        <i class="bi bi-box-seam-fill"></i>
+                        <span>Номенклатура</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('stores')">
+                        <i class="bi bi-building"></i>
+                        <span>Склады и магазины</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('departments')">
+                        <i class="bi bi-diagram-3"></i>
+                        <span>Подразделения</span>
+                    </a>
+                </li>
+                
+                <!-- Документы -->
+                <li class="nav-section-header">
+                    <i class="bi bi-file-text"></i>
+                    <span>Документы</span>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('sales')">
+                        <i class="bi bi-cash-stack"></i>
+                        <span>Чеки продаж</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('writeoffs')">
+                        <i class="bi bi-file-earmark-minus"></i>
+                        <span>Документы списания</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('incoming_invoices')">
+                        <i class="bi bi-file-earmark-arrow-down"></i>
+                        <span>Приходные накладные</span>
+                    </a>
+                </li>
+                
+                <!-- Отчеты -->
+                <li class="nav-section-header">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Отчеты</span>
+                </li>
+                <li class="nav-item">
+                    <a href="/reports" class="nav-link {% if request.endpoint and 'reports' in request.endpoint %}active{% endif %}">
+                        <i class="bi bi-graph-up"></i>
+                        <span>Модуль отчетности</span>
+                    </a>
+                </li>
+                
+                <!-- Сервис -->
+                <li class="nav-section-header">
+                    <i class="bi bi-gear"></i>
+                    <span>Сервис</span>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('upload')">
+                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                        <span>Загрузка данных</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/" class="nav-link" onclick="loadMainSection('logs')">
+                        <i class="bi bi-journal-text"></i>
+                        <span>История операций</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="reports-wrapper">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        // Function to load main sections when clicking non-report links
+        function loadMainSection(section) {
+            window.location.href = `/?section=${section}`;
+        }
+        
+        // Toggle sidebar for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('active');
+        }
+        
+        // Handle mobile menu
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add mobile menu button if doesn't exist
+            if (!document.querySelector('.mobile-menu-toggle')) {
+                const mobileBtn = document.createElement('button');
+                mobileBtn.className = 'mobile-menu-toggle d-md-none';
+                mobileBtn.style.cssText = `
+                    position: fixed;
+                    top: 15px;
+                    left: 15px;
+                    z-index: 1050;
+                    background: #667eea;
+                    border: none;
+                    color: white;
+                    padding: 10px;
+                    border-radius: 6px;
+                    font-size: 18px;
+                `;
+                mobileBtn.innerHTML = '<i class="bi bi-list"></i>';
+                mobileBtn.onclick = toggleSidebar;
+                document.body.appendChild(mobileBtn);
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,156 @@
+{% extends "reports/base_reports.html" %}
+
+{% block title %}Модуль отчетности{% endblock %}
+
+{% block content %}
+<div class="reports-header">
+    <h1 class="h3 mb-2">
+        <i class="fas fa-chart-bar me-2"></i>
+        Модуль отчетности
+    </h1>
+    <p class="mb-0 opacity-75">Универсальная система создания и просмотра отчетов</p>
+</div>
+
+<div class="container-fluid p-0">
+    <div class="row">
+        <div class="col-md-12">
+            
+            <div class="row">
+                {% for category_id, category in report_categories.items() %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 reports-card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="{{ category.icon }} me-2"></i>
+                                {{ category.name }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                {% for report_id, report in reports_config.items() %}
+                                {% if report.category == category_id %}
+                                <a href="/reports/{{ report_id }}" class="list-group-item list-group-item-action border-0 px-0">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ report.name }}</h6>
+                                        <small class="text-muted">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </small>
+                                    </div>
+                                    <p class="mb-1 text-muted small">{{ report.description }}</p>
+                                    <small class="text-muted">
+                                        Представления: 
+                                        {% for view in report.allowed_views %}
+                                            <span class="badge badge-light">{{ view }}</span>
+                                        {% endfor %}
+                                    </small>
+                                </a>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Статистика использования отчетов -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="reports-stats">
+                        <h5 class="mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Информация о модуле
+                        </h5>
+                        <div class="row">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-primary">{{ reports_config|length }}</h4>
+                                        <p class="text-muted mb-0">Всего отчетов</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-success">{{ report_categories|length }}</h4>
+                                        <p class="text-muted mb-0">Категорий</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-info">100%</h4>
+                                        <p class="text-muted mb-0">Унификация</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h4 class="text-warning">
+                                            <i class="fas fa-rocket"></i>
+                                        </h4>
+                                        <p class="text-muted mb-0">Готов к расширению</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Возможности модуля -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="reports-stats">
+                        <h5 class="mb-3">
+                            <i class="fas fa-cogs me-2"></i>
+                            Возможности модуля отчетности
+                        </h5>
+                        <div class="row">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Универсальный шаблон для всех отчетов
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Динамические фильтры по конфигурации
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Сохранение состояния в URL
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Экспорт в Excel с форматированием
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled">
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Переключение между таблицей и графиками
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Пагинация и ленивая загрузка
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Кэширование результатов
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-check text-success me-2"></i>
+                                            Легкое добавление новых отчетов
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

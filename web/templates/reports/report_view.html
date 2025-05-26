@@ -1,0 +1,571 @@
+{% extends "reports/base_reports.html" %}
+
+{% block title %}{{ report_config.name }}{% endblock %}
+
+{% block extra_css %}
+<!-- Стили загружаются из reports.css -->
+{% endblock %}
+
+{% block content %}
+<!-- Хлебные крошки -->
+<div class="reports-breadcrumb">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/reports">Отчеты</a></li>
+            <li class="breadcrumb-item active">{{ report_config.name }}</li>
+        </ol>
+    </nav>
+</div>
+
+<!-- Заголовок отчета -->
+<div class="reports-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 class="h3 mb-2">{{ report_config.name }}</h1>
+            <p class="mb-0 opacity-75">{{ report_config.description }}</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="view-toggle">
+                {% for view in report_config.allowed_views %}
+                <button type="button" class="btn view-btn" data-view="{{ view }}" 
+                        {% if view == report_config.default_view %}data-default="true"{% endif %}>
+                    {% if view == 'table' %}
+                        <i class="fas fa-table me-1"></i>Таблица
+                    {% elif view == 'chart' %}
+                        <i class="fas fa-chart-line me-1"></i>График
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+    
+<!-- Панель фильтров -->
+<div class="filter-panel">
+        <form id="reportFiltersForm">
+            <div class="row">
+                <!-- Динамически генерируемые фильтры -->
+                {% for filter_name, filter_config in filters_config.items() %}
+                <div class="col-md-4 filter-group">
+                    <label class="form-label fw-bold">{{ filter_config.name }}</label>
+                    
+                    {% if filter_config.type == 'dateRange' %}
+                    <!-- Фильтр диапазона дат -->
+                    <div class="date-range-filter">
+                        <div class="mb-2">
+                            {% for preset in filter_config.presets %}
+                            <button type="button" class="btn date-preset-btn" data-preset="{{ preset.key }}">
+                                {{ preset.name }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        <div class="row" id="customDateRange" style="display: none;">
+                            <div class="col-6">
+                                <input type="date" class="form-control" name="dateFrom" placeholder="От">
+                            </div>
+                            <div class="col-6">
+                                <input type="date" class="form-control" name="dateTo" placeholder="До">
+                            </div>
+                        </div>
+                        <input type="hidden" name="{{ filter_name }}" value="{{ report_config.default_filters.get(filter_name, 'week') }}">
+                    </div>
+                    
+                    {% elif filter_config.type == 'select' %}
+                    <!-- Фильтр выбора -->
+                    <select class="form-select" name="{{ filter_name }}" 
+                            {% if filter_config.get('multiple') %}multiple{% endif %}>
+                        {% if filter_config.get('default_option') %}
+                        <option value="{{ filter_config.default_option.value }}">
+                            {{ filter_config.default_option.text }}
+                        </option>
+                        {% endif %}
+                        {% for option in filter_config.get('options', []) %}
+                        <option value="{{ option.value }}">{{ option.text }}</option>
+                        {% endfor %}
+                    </select>
+                    
+                    {% elif filter_config.type == 'number' %}
+                    <!-- Числовой фильтр -->
+                    <input type="number" class="form-control" name="{{ filter_name }}"
+                           min="{{ filter_config.get('min', '') }}"
+                           max="{{ filter_config.get('max', '') }}"
+                           step="{{ filter_config.get('step', 1) }}"
+                           value="{{ filter_config.get('default', '') }}">
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <!-- Кнопки действий -->
+                <div class="col-md-12">
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>Применить фильтры
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="resetFilters">
+                                <i class="fas fa-undo me-1"></i>Сбросить
+                            </button>
+                        </div>
+                        <button type="button" class="btn export-btn" id="exportReport">
+                            <i class="fas fa-download me-1"></i>Экспорт в Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+</div>
+
+<!-- Hidden config data -->
+<script type="application/json" id="report-config-data">{{ report_config | tojson | safe }}</script>
+
+<!-- Контент отчета -->
+<div class="report-content">
+        <!-- Загрузочный скелетон -->
+        <div id="loadingSkeleton" style="display: none;">
+            <div class="loading-skeleton skeleton-row" style="width: 100%;"></div>
+            <div class="loading-skeleton skeleton-row" style="width: 90%;"></div>
+            <div class="loading-skeleton skeleton-row" style="width: 95%;"></div>
+            <div class="loading-skeleton skeleton-row" style="width: 85%;"></div>
+            <div class="loading-skeleton skeleton-row" style="width: 92%;"></div>
+        </div>
+        
+        <!-- Контейнер для таблицы -->
+        <div id="tableView" class="table-container">
+            <table class="table report-table" id="reportTable">
+                <thead>
+                    <tr>
+                        {% for column in report_config.columns %}
+                        <th data-sort="{{ column.key }}" style="cursor: pointer;">
+                            {{ column.name }}
+                            <i class="fas fa-sort ms-1 text-muted"></i>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    <!-- Данные будут загружены через AJAX -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Контейнер для графика -->
+        <div id="chartView" class="chart-container" style="display: none;">
+            <canvas id="reportChart"></canvas>
+        </div>
+        
+        <!-- Информация о результатах -->
+        <div id="reportInfo" class="mt-3 text-muted small">
+            <div class="row">
+                <div class="col-md-6">
+                    Записей: <span id="recordsCount">0</span>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    Время загрузки: <span id="loadTime">-</span> сек
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+class ReportView {
+    constructor(reportId, reportConfig) {
+        this.reportId = reportId;
+        this.reportConfig = reportConfig;
+        this.currentView = reportConfig.default_view;
+        this.currentSort = { field: null, direction: 'asc' };
+        this.chart = null;
+        this.loadStartTime = null;
+        
+        this.initializeEventListeners();
+        this.setDefaultFilters();
+        this.switchView(this.currentView);
+        this.loadReportData();
+    }
+    
+    initializeEventListeners() {
+        // Переключение представлений
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const view = e.target.closest('.view-btn').dataset.view;
+                this.switchView(view);
+            });
+        });
+        
+        // Обработка формы фильтров
+        document.getElementById('reportFiltersForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.loadReportData();
+        });
+        
+        // Сброс фильтров
+        document.getElementById('resetFilters').addEventListener('click', () => {
+            this.resetFilters();
+        });
+        
+        // Экспорт отчета
+        document.getElementById('exportReport').addEventListener('click', () => {
+            this.exportReport();
+        });
+        
+        // Пресеты дат
+        document.querySelectorAll('.date-preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.setDatePreset(e.target.dataset.preset);
+            });
+        });
+        
+        // Сортировка таблицы
+        document.querySelectorAll('th[data-sort]').forEach(th => {
+            th.addEventListener('click', (e) => {
+                const field = e.target.closest('th').dataset.sort;
+                this.sortTable(field);
+            });
+        });
+    }
+    
+    setDefaultFilters() {
+        // Устанавливаем значения фильтров по умолчанию
+        for (const [filterName, defaultValue] of Object.entries(this.reportConfig.default_filters)) {
+            const input = document.querySelector(`[name="${filterName}"]`);
+            if (input) {
+                input.value = defaultValue;
+            }
+        }
+        
+        // Активируем дефолтный пресет даты
+        const defaultDateRange = this.reportConfig.default_filters.dateRange || 'week';
+        this.setDatePreset(defaultDateRange);
+    }
+    
+    setDatePreset(preset) {
+        // Убираем активный класс со всех кнопок
+        document.querySelectorAll('.date-preset-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Добавляем активный класс к выбранной кнопке
+        const selectedBtn = document.querySelector(`[data-preset="${preset}"]`);
+        if (selectedBtn) {
+            selectedBtn.classList.add('active');
+        }
+        
+        // Устанавливаем значение скрытого поля
+        const hiddenInput = document.querySelector('input[name="dateRange"]');
+        if (hiddenInput) {
+            hiddenInput.value = preset;
+        }
+        
+        // Показываем/скрываем поля произвольного диапазона
+        const customRange = document.getElementById('customDateRange');
+        if (customRange) {
+            customRange.style.display = preset === 'custom' ? 'block' : 'none';
+        }
+    }
+    
+    switchView(view) {
+        this.currentView = view;
+        
+        // Обновляем кнопки
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.view === view) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // Показываем/скрываем контейнеры
+        const tableView = document.getElementById('tableView');
+        const chartView = document.getElementById('chartView');
+        
+        if (view === 'table') {
+            tableView.style.display = 'block';
+            chartView.style.display = 'none';
+        } else if (view === 'chart') {
+            tableView.style.display = 'none';
+            chartView.style.display = 'block';
+            
+            // Перерисовываем график если есть данные
+            if (this.lastData) {
+                this.renderChart(this.lastData);
+            }
+        }
+    }
+    
+    async loadReportData() {
+        this.showLoading();
+        this.loadStartTime = performance.now();
+        
+        try {
+            const formData = new FormData(document.getElementById('reportFiltersForm'));
+            const params = new URLSearchParams();
+            
+            // Собираем параметры фильтров
+            for (const [key, value] of formData.entries()) {
+                if (value) {
+                    params.append(key, value);
+                }
+            }
+            
+            const url = `/reports/api/${this.reportId}/data?${params}`;
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (result.success) {
+                this.lastData = result.data;
+                this.renderData(result.data);
+                this.updateInfo(result.total_records || result.data.length);
+            } else {
+                this.showError(result.error || 'Ошибка загрузки данных');
+            }
+        } catch (error) {
+            console.error('Error loading report data:', error);
+            this.showError('Ошибка загрузки данных');
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    renderData(data) {
+        if (this.currentView === 'table') {
+            this.renderTable(data);
+        } else if (this.currentView === 'chart') {
+            this.renderChart(data);
+        }
+    }
+    
+    renderTable(data) {
+        const tbody = document.getElementById('reportTableBody');
+        tbody.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="100%" class="text-center text-muted py-4">Нет данных для отображения</td></tr>';
+            return;
+        }
+        
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            
+            this.reportConfig.columns.forEach(column => {
+                const td = document.createElement('td');
+                const value = row[column.key];
+                
+                // Форматируем значение в зависимости от типа
+                if (column.type === 'money') {
+                    td.textContent = this.formatMoney(value);
+                } else if (column.type === 'number') {
+                    td.textContent = this.formatNumber(value);
+                } else if (column.type === 'date') {
+                    td.textContent = this.formatDate(value);
+                } else if (column.type === 'percent') {
+                    td.textContent = this.formatPercent(value);
+                } else {
+                    td.textContent = value || '-';
+                }
+                
+                tr.appendChild(td);
+            });
+            
+            tbody.appendChild(tr);
+        });
+    }
+    
+    renderChart(data) {
+        const ctx = document.getElementById('reportChart').getContext('2d');
+        
+        if (this.chart) {
+            this.chart.destroy();
+        }
+        
+        if (!data || data.length === 0) {
+            return;
+        }
+        
+        // Подготавливаем данные для графика
+        const chartData = this.prepareChartData(data);
+        
+        this.chart = new Chart(ctx, {
+            type: this.reportConfig.chart_type || 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: this.reportConfig.name
+                    },
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    prepareChartData(data) {
+        // Базовая подготовка данных для графика
+        const labels = data.map(row => row[this.reportConfig.columns[0].key]);
+        const datasets = [];
+        
+        // Создаем датасеты для числовых колонок
+        this.reportConfig.columns.forEach((column, index) => {
+            if (['money', 'number'].includes(column.type) && index > 0) {
+                datasets.push({
+                    label: column.name,
+                    data: data.map(row => row[column.key] || 0),
+                    borderColor: this.getChartColor(datasets.length),
+                    backgroundColor: this.getChartColor(datasets.length, 0.2),
+                    tension: 0.1
+                });
+            }
+        });
+        
+        return { labels, datasets };
+    }
+    
+    getChartColor(index, alpha = 1) {
+        const colors = [
+            `rgba(102, 126, 234, ${alpha})`,
+            `rgba(255, 99, 132, ${alpha})`,
+            `rgba(54, 162, 235, ${alpha})`,
+            `rgba(255, 205, 86, ${alpha})`,
+            `rgba(75, 192, 192, ${alpha})`,
+            `rgba(153, 102, 255, ${alpha})`
+        ];
+        return colors[index % colors.length];
+    }
+    
+    sortTable(field) {
+        if (this.currentSort.field === field) {
+            this.currentSort.direction = this.currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.currentSort.field = field;
+            this.currentSort.direction = 'asc';
+        }
+        
+        // Обновляем иконки сортировки
+        document.querySelectorAll('th[data-sort] i').forEach(icon => {
+            icon.className = 'fas fa-sort ms-1 text-muted';
+        });
+        
+        const currentTh = document.querySelector(`th[data-sort="${field}"] i`);
+        if (currentTh) {
+            currentTh.className = `fas fa-sort-${this.currentSort.direction === 'asc' ? 'up' : 'down'} ms-1`;
+        }
+        
+        // Сортируем данные и перерисовываем таблицу
+        if (this.lastData) {
+            const sortedData = [...this.lastData].sort((a, b) => {
+                let aVal = a[field];
+                let bVal = b[field];
+                
+                // Обработка чисел
+                if (typeof aVal === 'string' && !isNaN(parseFloat(aVal))) {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                }
+                
+                if (this.currentSort.direction === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+            
+            this.renderTable(sortedData);
+        }
+    }
+    
+    resetFilters() {
+        document.getElementById('reportFiltersForm').reset();
+        this.setDefaultFilters();
+        this.loadReportData();
+    }
+    
+    async exportReport() {
+        try {
+            const formData = new FormData(document.getElementById('reportFiltersForm'));
+            const params = new URLSearchParams();
+            
+            for (const [key, value] of formData.entries()) {
+                if (value) {
+                    params.append(key, value);
+                }
+            }
+            
+            window.open(`/reports/api/${this.reportId}/export?${params}`, '_blank');
+        } catch (error) {
+            console.error('Error exporting report:', error);
+            alert('Ошибка экспорта отчета');
+        }
+    }
+    
+    showLoading() {
+        document.getElementById('loadingSkeleton').style.display = 'block';
+        document.getElementById('tableView').style.opacity = '0.5';
+        document.getElementById('chartView').style.opacity = '0.5';
+    }
+    
+    hideLoading() {
+        document.getElementById('loadingSkeleton').style.display = 'none';
+        document.getElementById('tableView').style.opacity = '1';
+        document.getElementById('chartView').style.opacity = '1';
+    }
+    
+    updateInfo(recordsCount) {
+        document.getElementById('recordsCount').textContent = recordsCount.toLocaleString();
+        
+        if (this.loadStartTime) {
+            const loadTime = ((performance.now() - this.loadStartTime) / 1000).toFixed(2);
+            document.getElementById('loadTime').textContent = loadTime;
+        }
+    }
+    
+    showError(message) {
+        const tbody = document.getElementById('reportTableBody');
+        tbody.innerHTML = `<tr><td colspan="100%" class="text-center text-danger py-4">${message}</td></tr>`;
+    }
+    
+    // Утилитарные методы форматирования
+    formatMoney(value) {
+        if (!value) return '0,00 ₽';
+        return new Intl.NumberFormat('ru-RU', {
+            style: 'currency',
+            currency: 'RUB'
+        }).format(value);
+    }
+    
+    formatNumber(value) {
+        if (!value) return '0';
+        return new Intl.NumberFormat('ru-RU').format(value);
+    }
+    
+    formatDate(value) {
+        if (!value) return '-';
+        return new Date(value).toLocaleDateString('ru-RU');
+    }
+    
+    formatPercent(value) {
+        if (!value) return '0%';
+        return `${parseFloat(value).toFixed(1)}%`;
+    }
+}
+
+// Инициализация отчета
+document.addEventListener('DOMContentLoaded', function() {
+    const reportConfigElement = document.getElementById('report-config-data');
+    const reportConfig = JSON.parse(reportConfigElement.textContent);
+    const reportView = new ReportView('{{ report_config.id }}', reportConfig);
+});
+</script>
+{% endblock %}

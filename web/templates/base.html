@@ -102,6 +102,18 @@
                     </a>
                 </li>
                 
+                <!-- Отчеты -->
+                <li class="nav-section-header">
+                    <i class="bi bi-bar-chart"></i>
+                    <span>Отчеты</span>
+                </li>
+                <li class="nav-item">
+                    <a href="/reports" class="nav-link reports-link">
+                        <i class="bi bi-graph-up"></i>
+                        <span>Модуль отчетности</span>
+                    </a>
+                </li>
+                
                 <!-- Сервис -->
                 <li class="nav-section-header">
                     <i class="bi bi-gear"></i>
@@ -176,8 +188,15 @@
             
             navLinks.forEach(link => {
                 link.addEventListener('click', function(e) {
-                    e.preventDefault();
+                    // Пропускаем обработку для ссылок на отчеты или без data-section
                     const section = this.getAttribute('data-section');
+                    const isReportsLink = this.classList.contains('reports-link');
+                    
+                    if (!section || isReportsLink) {
+                        return; // Позволяем стандартную навигацию
+                    }
+                    
+                    e.preventDefault();
                     setActiveSection(section);
                     loadSection(section);
                 });

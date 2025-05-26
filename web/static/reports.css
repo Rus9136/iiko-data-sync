@@ -1,0 +1,233 @@
+/* Стили для модуля отчетности */
+.reports-wrapper {
+    margin-left: 280px; /* Отступ для бокового меню */
+    padding: 20px;
+    min-height: 100vh;
+    background: #f8f9fa;
+}
+
+.reports-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.reports-breadcrumb {
+    background: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.reports-breadcrumb .breadcrumb {
+    margin: 0;
+    background: none;
+    padding: 0;
+}
+
+.filter-panel {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e9ecef;
+}
+
+.filter-panel h5 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.view-toggle {
+    background: white;
+    border-radius: 25px;
+    padding: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: inline-flex;
+}
+
+.view-toggle .btn {
+    border-radius: 20px;
+    border: none;
+    padding: 8px 16px;
+    margin: 0 2px;
+    transition: all 0.3s ease;
+    background: transparent;
+    color: #6c757d;
+}
+
+.view-toggle .btn.active {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.4);
+}
+
+.view-toggle .btn:hover:not(.active) {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+.report-content {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e9ecef;
+}
+
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-row {
+    height: 20px;
+    margin: 10px 0;
+    border-radius: 4px;
+}
+
+.filter-group {
+    margin-bottom: 15px;
+}
+
+.export-btn {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    color: white;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin-top: 20px;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+.report-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100%;
+}
+
+.report-table th {
+    background: #667eea;
+    color: white;
+    font-weight: 600;
+    padding: 12px;
+    text-align: left;
+    border: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.report-table td {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    background: white;
+}
+
+.report-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.date-preset-btn {
+    margin: 2px;
+    padding: 5px 12px;
+    font-size: 0.875rem;
+    border-radius: 20px;
+    border: 1px solid #dee2e6;
+    background: white;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.date-preset-btn:hover,
+.date-preset-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.reports-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.reports-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.reports-card .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.reports-stats {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e9ecef;
+}
+
+.reports-info {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
+    color: #6c757d;
+    font-size: 0.875rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .reports-wrapper {
+        margin-left: 0;
+        padding: 10px;
+    }
+    
+    .filter-panel {
+        padding: 15px;
+    }
+    
+    .report-content {
+        padding: 15px;
+    }
+    
+    .view-toggle {
+        width: 100%;
+        justify-content: center;
+    }
+}
