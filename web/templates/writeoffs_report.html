@@ -1,9 +1,0 @@
-{% if request.headers.get('X-Requested-With') == 'XMLHttpRequest' %}
-    {% include 'writeoffs_report_content.html' %}
-{% else %}
-    {% extends "base.html" %}
-    {% block title %}Отчеты по списаниям - IIKO Data Sync{% endblock %}
-    {% block content %}
-        {% include 'writeoffs_report_content.html' %}
-    {% endblock %}
-{% endif %}

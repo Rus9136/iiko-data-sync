@@ -1,9 +1,0 @@
-{% if request.headers.get('X-Requested-With') == 'XMLHttpRequest' %}
-    {% include 'operational_summary_content.html' %}
-{% else %}
-    {% extends "base.html" %}
-    {% block title %}Оперативная сводка - IIKO Data Sync{% endblock %}
-    {% block content %}
-        {% include 'operational_summary_content.html' %}
-    {% endblock %}
-{% endif %}
