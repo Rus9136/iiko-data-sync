@@ -1274,10 +1274,7 @@ def sync_prices():
 @app.route('/operational-summary')
 def operational_summary():
     """Страница оперативной сводки"""
-    if is_ajax_request():
-        return render_template('operational_summary.html')
-    else:
-        return render_template('base.html', content_template='operational_summary.html')
+    return render_template('operational_summary.html')
 
 @app.route('/api/departments')
 def api_departments():

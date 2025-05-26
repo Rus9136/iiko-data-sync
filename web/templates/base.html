@@ -316,38 +316,34 @@
             .then(html => {
                 mainContent.innerHTML = html;
                 
-                // Re-initialize any scripts in the loaded content
+                // Re-initialize any scripts in the loaded content safely
                 const scripts = mainContent.querySelectorAll('script');
                 scripts.forEach(script => {
                     try {
-                        const newScript = document.createElement('script');
-                        
                         if (script.src) {
                             // Для внешних скриптов
+                            const newScript = document.createElement('script');
                             newScript.src = script.src;
                             newScript.async = false;
+                            document.head.appendChild(newScript);
                         } else if (script.textContent && script.textContent.trim()) {
-                            // Для встроенных скриптов
-                            newScript.textContent = script.textContent;
+                            // Для встроенных скриптов используем безопасное выполнение
+                            try {
+                                // Выполняем код в глобальном контексте
+                                (function() {
+                                    eval(script.textContent);
+                                })();
+                            } catch (evalError) {
+                                console.error('Error executing script:', evalError);
+                            }
                         }
                         
-                        // Копируем все атрибуты
-                        Array.from(script.attributes).forEach(attr => {
-                            if (attr.name !== 'src') {
-                                newScript.setAttribute(attr.name, attr.value);
-                            }
-                        });
-                        
-                        // Удаляем старый скрипт и вставляем новый
+                        // Удаляем старый скрипт
                         if (script.parentNode) {
-                            script.parentNode.insertBefore(newScript, script);
                             script.parentNode.removeChild(script);
-                        } else {
-                            document.body.appendChild(newScript);
                         }
                     } catch (e) {
                         console.error('Error processing script:', e);
-                        console.error('Script:', script);
                     }
                 });
                 
@@ -400,11 +396,7 @@
         }
         
         function loadInternalPage(url) {
-            // Для страницы отчетов используем прямой переход
-            if (url.includes('/writeoffs/report') || url.includes('/operational-summary')) {
-                window.location.href = url;
-                return;
-            }
+            // Все страницы теперь загружаются через AJAX
             
             const mainContent = document.querySelector('.content-container');
             mainContent.innerHTML = '<div class="loading-spinner"><i class="bi bi-hourglass-split"></i> Загрузка...</div>';
@@ -421,38 +413,34 @@
             .then(html => {
                 mainContent.innerHTML = html;
                 
-                // Re-initialize any scripts in the loaded content
+                // Re-initialize any scripts in the loaded content safely
                 const scripts = mainContent.querySelectorAll('script');
                 scripts.forEach(script => {
                     try {
-                        const newScript = document.createElement('script');
-                        
                         if (script.src) {
                             // Для внешних скриптов
+                            const newScript = document.createElement('script');
                             newScript.src = script.src;
                             newScript.async = false;
+                            document.head.appendChild(newScript);
                         } else if (script.textContent && script.textContent.trim()) {
-                            // Для встроенных скриптов
-                            newScript.textContent = script.textContent;
+                            // Для встроенных скриптов используем безопасное выполнение
+                            try {
+                                // Выполняем код в глобальном контексте
+                                (function() {
+                                    eval(script.textContent);
+                                })();
+                            } catch (evalError) {
+                                console.error('Error executing script:', evalError);
+                            }
                         }
                         
-                        // Копируем все атрибуты
-                        Array.from(script.attributes).forEach(attr => {
-                            if (attr.name !== 'src') {
-                                newScript.setAttribute(attr.name, attr.value);
-                            }
-                        });
-                        
-                        // Удаляем старый скрипт и вставляем новый
+                        // Удаляем старый скрипт
                         if (script.parentNode) {
-                            script.parentNode.insertBefore(newScript, script);
                             script.parentNode.removeChild(script);
-                        } else {
-                            document.body.appendChild(newScript);
                         }
                     } catch (e) {
                         console.error('Error processing script:', e);
-                        console.error('Script:', script);
                     }
                 });
                 

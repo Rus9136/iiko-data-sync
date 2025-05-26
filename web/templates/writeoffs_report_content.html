@@ -1,15 +1,14 @@
-<div class="container">
+<div class="container-fluid">
     <header class="products-header">
         <div>
             <h1>Отчеты по списаниям</h1>
-            <button onclick="window.location.href='/'" class="back-btn">← Назад</button>
+            <button onclick="goBackToDashboard()" class="back-btn">← Назад</button>
         </div>
     </header>
 
-    <div class="report-container">
-        <!-- Фильтры -->
-        <div class="filters-panel">
-            <h3>Параметры отчета</h3>
+    <!-- Фильтры в шапке -->
+    <div class="filters-container">
+        <div class="filters-form">
             
             <div class="filter-group">
                 <label for="report_type">Тип отчета:</label>
@@ -104,11 +103,18 @@
                 </div>
             </div>
 
-            <button id="generateReport" class="action-btn primary">Сформировать отчет</button>
+            </div>
+            
+            <div class="form-actions">
+                <button id="generateReport" class="action-btn primary">
+                    <i class="bi bi-bar-chart"></i> Сформировать отчет
+                </button>
+            </div>
         </div>
+    </div>
 
-        <!-- Результаты отчета -->
-        <div class="report-results">
+    <!-- Результаты отчета -->
+    <div class="report-results">
             <div id="report-header" style="display: none;">
                 <h3 id="report-title">Результаты отчета</h3>
                 <button id="exportExcel" class="action-btn secondary">
@@ -125,6 +131,817 @@
                     <p>Выберите параметры и нажмите "Сформировать отчет"</p>
                 </div>
             </div>
-        </div>
     </div>
 </div>
+
+<style>
+.filters-container {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.filters-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4a5568;
+    margin-bottom: 4px;
+}
+
+.select-input, .date-input {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: white;
+    transition: all 0.2s;
+}
+
+.select-input:focus, .date-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.report-results {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    min-height: 400px;
+}
+
+#report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+#report-title {
+    margin: 0;
+    color: #333;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+}
+
+.action-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.action-btn.primary {
+    background: #4CAF50;
+    color: white;
+    width: 100%;
+    justify-content: center;
+}
+
+.action-btn.primary:hover {
+    background: #45a049;
+}
+
+.action-btn.secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.action-btn.secondary:hover {
+    background: #e0e0e0;
+}
+
+.back-btn {
+    padding: 8px 16px;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.back-btn:hover {
+    background: #e0e0e0;
+}
+
+/* Стили для таблиц в отчете */
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.report-table th {
+    background: #f5f5f5;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #ddd;
+}
+
+.report-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.report-table tr:hover {
+    background: #f9f9f9;
+}
+
+.report-table .number {
+    text-align: right;
+}
+
+.report-table .total-row {
+    font-weight: 600;
+    background: #f5f5f5;
+}
+
+.report-summary {
+    background: #f0f8ff;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.report-summary h4 {
+    margin: 0 0 10px 0;
+    color: #1976d2;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.summary-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-stat .label {
+    color: #666;
+}
+
+.summary-stat .value {
+    font-weight: 600;
+    color: #333;
+}
+
+/* Индикаторы статуса */
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.critical {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.status-badge.high {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.status-badge.normal {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.status-badge.low {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+/* Загрузка */
+.loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #4CAF50;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-message {
+    background: #ffebee;
+    color: #c62828;
+    padding: 15px;
+    border-radius: 4px;
+    margin: 20px 0;
+}
+/* Стили для загрузки и ошибок */
+.loading {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto 20px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-message {
+    background: #fee;
+    color: #c33;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+/* Стили для кнопок */
+.action-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn.primary {
+    background: #667eea;
+    color: white;
+}
+
+.action-btn.primary:hover {
+    background: #5a67d8;
+}
+
+.action-btn.secondary {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.action-btn.secondary:hover {
+    background: #cbd5e0;
+}
+
+/* Дополнительные стили для формы */
+.form-actions {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.action-btn i {
+    margin-right: 8px;
+}
+
+#additional_params {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+#additional_params .filter-group {
+    flex: 0 1 auto;
+    min-width: 150px;
+}
+
+.products-header {
+    padding: 20px 0;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 24px;
+}
+
+.products-header h1 {
+    font-size: 2rem;
+    color: #1a202c;
+    margin: 0;
+}
+
+/* Переопределение для inline фильтров */
+.filters-form > .filter-group {
+    min-width: 150px;
+    flex: 0 1 auto;
+}
+
+.select-input {
+    min-width: 200px;
+}
+
+.date-input {
+    min-width: 150px;
+}
+
+/* Полная ширина для контейнера */
+.container-fluid {
+    max-width: 100%;
+    padding: 0 24px;
+}
+
+/* Убираем ограничение ширины для основного контента */
+.main-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+}
+
+.content-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+}
+
+/* Исправляем отступы для контента */
+body {
+    overflow-x: hidden;
+}
+
+/* Убираем лишние отступы у таблиц */
+.report-table {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+</style>
+
+<script>
+console.log('=== Script tag loaded ===');
+
+function goBackToDashboard() {
+    if (typeof loadInternalPage === 'function') {
+        loadInternalPage('/');
+    } else {
+        window.location.href = '/';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== DOMContentLoaded event fired ===');
+    const reportTypeSelect = document.getElementById('report_type');
+    const generateButton = document.getElementById('generateReport');
+    const exportButton = document.getElementById('exportExcel');
+    const reportContent = document.getElementById('report-content');
+    const reportHeader = document.getElementById('report-header');
+    const reportTitle = document.getElementById('report-title');
+    
+    // Проверяем, что все элементы найдены
+    console.log('Elements check:', {
+        reportTypeSelect: !!reportTypeSelect,
+        generateButton: !!generateButton,
+        exportButton: !!exportButton,
+        reportContent: !!reportContent,
+        reportHeader: !!reportHeader,
+        reportTitle: !!reportTitle
+    });
+    
+    // Check if we came from dashboard with a specific report type
+    const savedReportType = sessionStorage.getItem('writeoffReportType');
+    if (savedReportType) {
+        reportTypeSelect.value = savedReportType;
+        reportTypeSelect.dispatchEvent(new Event('change'));
+        sessionStorage.removeItem('writeoffReportType');
+        // Автоматически генерируем отчет
+        setTimeout(() => {
+            generateButton.click();
+        }, 100);
+    }
+    
+    // Управление дополнительными параметрами
+    if (reportTypeSelect) {
+        reportTypeSelect.addEventListener('change', function() {
+            const reportType = this.value;
+            const additionalParams = document.getElementById('additional_params');
+            
+            // Скрываем все дополнительные параметры
+            document.querySelectorAll('#additional_params .filter-group').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // Показываем нужные параметры в зависимости от типа отчета
+            switch(reportType) {
+            case 'writeoffs_by_period':
+            case 'writeoffs_dynamics':
+                additionalParams.style.display = 'block';
+                document.querySelector('.period-type-group').style.display = 'block';
+                if (reportType === 'writeoffs_by_period') {
+                    document.querySelector('.dynamics-group').style.display = 'block';
+                }
+                break;
+                
+            case 'top_writeoff_products':
+                additionalParams.style.display = 'block';
+                document.querySelector('.sort-by-group').style.display = 'block';
+                document.querySelector('.limit-rows-group').style.display = 'block';
+                break;
+                
+            case 'stores_comparison':
+                additionalParams.style.display = 'block';
+                document.querySelector('.comparison-metric-group').style.display = 'block';
+                break;
+                
+            case 'writeoff_percentage':
+                additionalParams.style.display = 'block';
+                document.querySelector('.period-type-group').style.display = 'block';
+                break;
+                
+            default:
+                additionalParams.style.display = 'none';
+            }
+        });
+    }
+    
+    // Генерация отчета
+    if (generateButton) {
+        console.log('Generate button found, adding click listener');
+        generateButton.addEventListener('click', async function(e) {
+            e.preventDefault();
+            console.log('=== Generate button clicked ===');
+            
+            try {
+                if (!reportTypeSelect || !reportTypeSelect.value) {
+                    console.error('Report type not selected!');
+                    alert('Пожалуйста, выберите тип отчета');
+                    return;
+                }
+                
+                const reportType = reportTypeSelect.value;
+                console.log('Report type selected:', reportType);
+        
+                // Собираем параметры
+                const dateFrom = document.getElementById('date_from');
+                const dateTo = document.getElementById('date_to');
+                const storeId = document.getElementById('store_id');
+                const accountId = document.getElementById('account_id');
+                
+                console.log('Form elements found:', {
+                dateFrom: dateFrom ? dateFrom.value : null,
+                dateTo: dateTo ? dateTo.value : null, 
+                storeId: storeId ? storeId.value : null,
+                accountId: accountId ? accountId.value : null
+                });
+                
+                const params = {
+                report_type: reportType,
+                date_from: dateFrom ? dateFrom.value : '',
+                date_to: dateTo ? dateTo.value : '',
+                store_id: storeId ? storeId.value : '',
+                account_id: accountId ? accountId.value : ''
+                };
+            
+                console.log('Basic params collected:', params);
+            
+                // Добавляем дополнительные параметры
+                if (document.querySelector('.period-type-group').style.display !== 'none') {
+                    params.periodType = document.getElementById('periodType').value;
+                    console.log('Added periodType:', params.periodType);
+                }
+                if (document.querySelector('.sort-by-group').style.display !== 'none') {
+                    params.sortBy = document.getElementById('sortBy').value;
+                    console.log('Added sortBy:', params.sortBy);
+                }
+                if (document.querySelector('.limit-rows-group').style.display !== 'none') {
+                    params.limitRows = document.getElementById('limitRows').value;
+                    console.log('Added limitRows:', params.limitRows);
+                }
+                if (document.querySelector('.comparison-metric-group').style.display !== 'none') {
+                    params.comparisonMetric = document.getElementById('comparisonMetric').value;
+                    console.log('Added comparisonMetric:', params.comparisonMetric);
+                }
+                if (document.querySelector('.dynamics-group').style.display !== 'none') {
+                    params.showDynamics = document.getElementById('showDynamics').checked ? 'true' : 'false';
+                    console.log('Added showDynamics:', params.showDynamics);
+                }
+                
+                console.log('Final params:', params);
+                
+                // Показываем загрузку
+                reportContent.innerHTML = '<div class="loading"><div class="spinner"></div><p>Формирование отчета...</p></div>';
+                reportHeader.style.display = 'none';
+                console.log('Loading state shown');
+                
+                const apiUrl = window.location.origin + '/api/writeoff-reports';
+                console.log('API URL:', apiUrl);
+                console.log('Request body:', JSON.stringify(params, null, 2));
+                
+                console.log('Sending fetch request...');
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(params)
+                });
+                
+                console.log('Response received');
+            console.log('Response status:', response.status);
+            console.log('Response statusText:', response.statusText);
+            console.log('Response headers:', [...response.headers.entries()]);
+            
+            if (!response.ok) {
+                console.error('Response not OK');
+                const errorText = await response.text();
+                console.error('Error response text:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            }
+            
+            console.log('Parsing JSON response...');
+            const result = await response.json();
+            console.log('Parsed result:', result);
+            console.log('Result status:', result.status);
+            console.log('Result data length:', result.data ? result.data.length : 0);
+            
+            if (result.status === 'success') {
+                console.log('Success! Updating UI...');
+                // Обновляем заголовок
+                if (reportTitle) {
+                    reportTitle.textContent = getReportTitle(reportType);
+                    if (result.report_subtitle) {
+                        reportTitle.textContent += ` - ${result.report_subtitle}`;
+                    }
+                } else {
+                    console.error('reportTitle element not found!');
+                }
+                
+                if (reportHeader) {
+                    reportHeader.style.display = 'flex';
+                } else {
+                    console.error('reportHeader element not found!');
+                }
+                console.log('Header updated');
+                
+                // Отображаем результаты
+                console.log('Calling displayReport...');
+                displayReport(result, reportType);
+                console.log('Report displayed successfully');
+            } else {
+                console.error('Result status is not success:', result.status);
+                console.error('Error message:', result.message);
+                reportContent.innerHTML = `<div class="error-message">Ошибка: ${result.message}</div>`;
+            }
+        } catch (error) {
+            console.error('=== Caught error in fetch ===');
+            console.error('Error type:', error.constructor.name);
+            console.error('Error message:', error.message);
+            console.error('Stack trace:', error.stack);
+            reportContent.innerHTML = `<div class="error-message">Ошибка при формировании отчета: ${error.message}</div>`;
+        }
+        
+        console.log('=== End of generate button click ===');
+        
+        } catch (globalError) {
+            console.error('=== Global error in button handler ===');
+            console.error('Error:', globalError);
+            alert('Произошла критическая ошибка: ' + globalError.message);
+        }
+    });
+    } else {
+        console.error('Generate button not found!');
+    }
+    
+    // Экспорт в Excel
+    if (exportButton) {
+        exportButton.addEventListener('click', function() {
+                const params = new URLSearchParams({
+                report_type: reportTypeSelect.value,
+                date_from: document.getElementById('date_from').value,
+                date_to: document.getElementById('date_to').value,
+                store_id: document.getElementById('store_id').value,
+                account_id: document.getElementById('account_id').value
+            });
+            
+            // Добавляем дополнительные параметры
+            if (document.querySelector('.period-type-group').style.display !== 'none') {
+                params.append('periodType', document.getElementById('periodType').value);
+            }
+            if (document.querySelector('.sort-by-group').style.display !== 'none') {
+                params.append('sortBy', document.getElementById('sortBy').value);
+            }
+            if (document.querySelector('.limit-rows-group').style.display !== 'none') {
+                params.append('limitRows', document.getElementById('limitRows').value);
+            }
+            if (document.querySelector('.comparison-metric-group').style.display !== 'none') {
+                params.append('comparisonMetric', document.getElementById('comparisonMetric').value);
+            }
+            
+            window.location.href = `/api/writeoff-reports/export?${params.toString()}`;
+        });
+    }
+    
+    // Функция для получения заголовка отчета
+    function getReportTitle(reportType) {
+        const titles = {
+            'writeoffs_by_period': 'Списания по периодам',
+            'writeoffs_dynamics': 'Динамика списаний',
+            'writeoffs_by_store': 'Списания по складам/точкам',
+            'writeoffs_by_reason': 'Списания по причинам',
+            'top_writeoff_products': 'Топ списываемых товаров',
+            'writeoff_percentage': 'Процент списаний от поступлений',
+            'financial_losses': 'Финансовые потери от списаний',
+            'stores_comparison': 'Сравнение складов по списаниям'
+        };
+        return titles[reportType] || 'Отчет по списаниям';
+    }
+    
+    // Функция для отображения отчета
+    function displayReport(result, reportType) {
+        console.log('=== displayReport called ===');
+        console.log('Report type:', reportType);
+        console.log('Result:', result);
+        
+        if (!reportContent) {
+            console.error('reportContent not found in displayReport!');
+            return;
+        }
+        
+        let html = '';
+        
+        // Добавляем сводку если есть
+        if (result.summary) {
+            html += '<div class="report-summary">';
+            html += '<h4>Сводка</h4>';
+            html += '<div class="summary-stats">';
+            
+            if (result.summary.total_losses !== undefined) {
+                html += `<div class="summary-stat">
+                    <span class="label">Общие потери:</span>
+                    <span class="value">${formatNumber(result.summary.total_losses)} ₸</span>
+                </div>`;
+            }
+            if (result.summary.docs_count !== undefined) {
+                html += `<div class="summary-stat">
+                    <span class="label">Документов:</span>
+                    <span class="value">${result.summary.docs_count}</span>
+                </div>`;
+            }
+            if (result.summary.total_checks_analyzed !== undefined) {
+                html += `<div class="summary-stat">
+                    <span class="label">Проанализировано чеков:</span>
+                    <span class="value">${result.summary.total_checks_analyzed}</span>
+                </div>`;
+            }
+            if (result.summary.avg_items_per_check !== undefined) {
+                html += `<div class="summary-stat">
+                    <span class="label">Среднее кол-во позиций в чеке:</span>
+                    <span class="value">${result.summary.avg_items_per_check.toFixed(2)}</span>
+                </div>`;
+            }
+            
+            html += '</div></div>';
+        }
+        
+        // Формируем таблицу
+        if (result.data && result.data.length > 0) {
+            html += '<table class="report-table">';
+            html += '<thead><tr>';
+            
+            // Заголовки колонок
+            result.columns.forEach(col => {
+                html += `<th class="${col.type === 'number' ? 'number' : ''}">${col.title}</th>`;
+            });
+            
+            html += '</tr></thead><tbody>';
+            
+            // Данные
+            result.data.forEach((row, index) => {
+                const isTotal = row.period === 'ИТОГО' || row.group_field === 'ИТОГО';
+                html += `<tr class="${isTotal ? 'total-row' : ''}">`;
+                
+                result.columns.forEach(col => {
+                    let value = row[col.key];
+                    let cellClass = col.type === 'number' ? 'number' : '';
+                    
+                    // Форматирование значений
+                    if (col.type === 'number' && value !== undefined && value !== null && value !== '-') {
+                        value = formatNumber(value);
+                    } else if (col.type === 'date' && value && value !== 'ИТОГО') {
+                        value = formatDate(value);
+                    } else if (col.key === 'status' && value) {
+                        const statusClass = getStatusClass(value);
+                        value = `<span class="status-badge ${statusClass}">${value}</span>`;
+                    }
+                    
+                    html += `<td class="${cellClass}">${value || '-'}</td>`;
+                });
+                
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            
+            // Дополнительная информация
+            if (result.total_records) {
+                html += `<p style="margin-top: 15px; color: #666;">Всего записей: ${result.total_records}</p>`;
+            }
+        } else {
+            html = '<div class="empty-state"><p>Нет данных для отображения</p></div>';
+        }
+        
+        console.log('Setting HTML to reportContent, length:', html.length);
+        reportContent.innerHTML = html;
+        console.log('HTML set successfully');
+    }
+    
+    // Вспомогательные функции форматирования
+    function formatNumber(num) {
+        if (typeof num === 'string' && num.includes('%')) {
+            return num;
+        }
+        return new Intl.NumberFormat('ru-RU', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 3
+        }).format(num);
+    }
+    
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    }
+    
+    function getStatusClass(status) {
+        const statusMap = {
+            'Критический': 'critical',
+            'Высокий': 'high',
+            'Нормальный': 'normal',
+            'Низкий': 'low',
+            'Отлично': 'low',
+            'Хорошо': 'normal',
+            'Удовлетворительно': 'high',
+            'Требует внимания': 'critical'
+        };
+        return statusMap[status] || 'normal';
+    }
+    
+    // Функция возврата к дашборду
+    window.goBackToDashboard = function() {
+        if (typeof loadInternalPage === 'function') {
+            loadInternalPage('/');
+        } else {
+            window.location.href = '/';
+        }
+    }
+});
+
+// Функция для перехода к дашборду (глобальная)
+function showDashboard() {
+    if (typeof loadInternalPage === 'function') {
+        loadInternalPage('/');
+    } else {
+        window.location.href = '/';
+    }
+}
+</script>
