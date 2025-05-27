@@ -184,7 +184,7 @@ class ReportsController:
             )
             SELECT 
                 hour::integer,
-                LPAD(hour::text, 2, '0') || ':00-' || LPAD((hour+1)::text, 2, '0') || ':00' as hour_range,
+                LPAD(hour::text, 2, '0') || ':' || '00-' || LPAD((hour + 1)::text, 2, '0') || ':' || '00' as hour_range,
                 orders_count,
                 total_amount,
                 ROUND(total_amount / NULLIF(orders_count, 0), 2) as avg_check,
@@ -531,13 +531,14 @@ class ReportsController:
             WITH product_sales AS (
                 SELECT 
                     s.dish_name as product_name,
-                    p.product_category_name as category,
+                    c.name as category,
                     SUM(s.dish_amount) as quantity,
                     SUM(s.dish_sum) as total_amount,
                     COUNT(DISTINCT s.order_num || '-' || s.fiscal_cheque_number) as orders_count
                 FROM sales s
                 LEFT JOIN departments d ON s.department_id = d.id
                 LEFT JOIN products p ON s.dish_code = p.code
+                LEFT JOIN categories c ON p.category_id = c.id
                 WHERE DATE(s.close_time) BETWEEN :date_from AND :date_to
                     AND (s.storned IS NULL OR s.storned = false)
         """
@@ -555,7 +556,7 @@ class ReportsController:
                     params[f'dept_{i}'] = dept_id
         
         base_query += """
-                GROUP BY s.dish_name, p.product_category_name
+                GROUP BY s.dish_name, c.name
             ),
             total_sales AS (
                 SELECT SUM(total_amount) as grand_total FROM product_sales
@@ -624,13 +625,14 @@ class ReportsController:
             WITH product_sales AS (
                 SELECT 
                     s.dish_name as product_name,
-                    p.product_category_name as category,
+                    c.name as category,
                     SUM(s.dish_amount) as quantity,
                     SUM(s.dish_sum) as total_amount,
                     MAX(DATE(s.close_time)) as last_sale_date
                 FROM sales s
                 LEFT JOIN departments d ON s.department_id = d.id
                 LEFT JOIN products p ON s.dish_code = p.code
+                LEFT JOIN categories c ON p.category_id = c.id
                 WHERE DATE(s.close_time) BETWEEN :date_from AND :date_to
                     AND (s.storned IS NULL OR s.storned = false)
         """
@@ -648,7 +650,7 @@ class ReportsController:
                     params[f'dept_{i}'] = dept_id
         
         base_query += """
-                GROUP BY s.dish_name, p.product_category_name
+                GROUP BY s.dish_name, c.name
                 HAVING SUM(s.dish_sum) > 0
             )
             SELECT 
