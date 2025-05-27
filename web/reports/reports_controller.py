@@ -1000,16 +1000,10 @@ def get_report_data(report_id):
             result = ReportsController.get_sales_by_weekday_data(filters)
         elif report_type == 'sales_by_department':
             result = ReportsController.get_sales_by_department_data(filters)
-        elif report_type == 'sales_comparison':
-            result = ReportsController.get_sales_comparison_data(filters)
         elif report_type == 'top_products':
             result = ReportsController.get_top_products_data(filters)
-        elif report_type == 'bottom_products':
-            result = ReportsController.get_bottom_products_data(filters)
         elif report_type == 'avg_check':
             result = ReportsController.get_avg_check_data(filters)
-        elif report_type == 'check_statistics':
-            result = ReportsController.get_check_statistics_data(filters)
         else:
             result = {'success': False, 'error': 'Unknown report type', 'data': []}
         
@@ -1057,16 +1051,10 @@ def export_report(report_id):
             result = ReportsController.get_sales_by_weekday_data(filters)
         elif report_type == 'sales_by_department':
             result = ReportsController.get_sales_by_department_data(filters)
-        elif report_type == 'sales_comparison':
-            result = ReportsController.get_sales_comparison_data(filters)
         elif report_type == 'top_products':
             result = ReportsController.get_top_products_data(filters)
-        elif report_type == 'bottom_products':
-            result = ReportsController.get_bottom_products_data(filters)
         elif report_type == 'avg_check':
             result = ReportsController.get_avg_check_data(filters)
-        elif report_type == 'check_statistics':
-            result = ReportsController.get_check_statistics_data(filters)
         else:
             return jsonify({'success': False, 'error': 'Unknown report type'}), 400
     else:
@@ -1118,7 +1106,8 @@ def export_report(report_id):
             worksheet.write(0, col_num, value, header_format)
         
         # Форматируем денежные колонки
-        for col in report_config['columns']:
+        columns_to_format = columns if report_id == 'sales-by-period' else report_config.get('columns', [])
+        for col in columns_to_format:
             if col['type'] == 'money' and col['name'] in df.columns:
                 col_idx = df.columns.get_loc(col['name'])
                 worksheet.set_column(col_idx, col_idx, None, money_format)

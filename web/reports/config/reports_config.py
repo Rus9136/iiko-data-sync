@@ -158,11 +158,8 @@ FILTERS_CONFIG = {
             {'value': 'sales_by_hour', 'text': 'Продажи по часам дня'},
             {'value': 'sales_by_weekday', 'text': 'Продажи по дням недели'},
             {'value': 'sales_by_department', 'text': 'Продажи по торговым точкам'},
-            {'value': 'sales_comparison', 'text': 'Сравнительный анализ продаж между точками'},
             {'value': 'top_products', 'text': 'Топ-продаваемых товаров'},
-            {'value': 'bottom_products', 'text': 'Антитоп - товары с минимальными продажами'},
-            {'value': 'avg_check', 'text': 'Средний чек по периодам и точкам'},
-            {'value': 'check_statistics', 'text': 'Количество чеков и позиций в чеке'}
+            {'value': 'avg_check', 'text': 'Средний чек по периодам и точкам'}
         ]
     }
 }
@@ -196,13 +193,6 @@ REPORT_COLUMNS = {
         {'key': 'avg_check', 'name': 'Средний чек (₸)', 'type': 'money'},
         {'key': 'percentage', 'name': 'Доля %', 'type': 'percent'}
     ],
-    'sales_comparison': [
-        {'key': 'department', 'name': 'Торговая точка', 'type': 'string'},
-        {'key': 'current_amount', 'name': 'Текущий период (₸)', 'type': 'money'},
-        {'key': 'previous_amount', 'name': 'Предыдущий период (₸)', 'type': 'money'},
-        {'key': 'growth', 'name': 'Рост (₸)', 'type': 'money'},
-        {'key': 'growth_percent', 'name': 'Рост %', 'type': 'percent'}
-    ],
     'top_products': [
         {'key': 'rank', 'name': '№', 'type': 'number'},
         {'key': 'product_name', 'name': 'Товар', 'type': 'string'},
@@ -210,14 +200,6 @@ REPORT_COLUMNS = {
         {'key': 'quantity', 'name': 'Количество', 'type': 'number'},
         {'key': 'total_amount', 'name': 'Сумма продаж (₸)', 'type': 'money'},
         {'key': 'percentage', 'name': 'Доля %', 'type': 'percent'}
-    ],
-    'bottom_products': [
-        {'key': 'rank', 'name': '№', 'type': 'number'},
-        {'key': 'product_name', 'name': 'Товар', 'type': 'string'},
-        {'key': 'category', 'name': 'Категория', 'type': 'string'},
-        {'key': 'quantity', 'name': 'Количество', 'type': 'number'},
-        {'key': 'total_amount', 'name': 'Сумма продаж (₸)', 'type': 'money'},
-        {'key': 'days_since_sale', 'name': 'Дней без продаж', 'type': 'number'}
     ],
     'avg_check': [
         {'key': 'period', 'name': 'Период', 'type': 'string'},
@@ -227,14 +209,6 @@ REPORT_COLUMNS = {
         {'key': 'max_check', 'name': 'Макс. чек (₸)', 'type': 'money'},
         {'key': 'orders_count', 'name': 'Количество чеков', 'type': 'number'}
     ],
-    'check_statistics': [
-        {'key': 'period', 'name': 'Период', 'type': 'string'},
-        {'key': 'department', 'name': 'Торговая точка', 'type': 'string'},
-        {'key': 'orders_count', 'name': 'Количество чеков', 'type': 'number'},
-        {'key': 'total_items', 'name': 'Всего позиций', 'type': 'number'},
-        {'key': 'avg_items_per_check', 'name': 'Среднее позиций в чеке', 'type': 'number'},
-        {'key': 'unique_products', 'name': 'Уникальных товаров', 'type': 'number'}
-    ]
 }
 
 # Типы графиков для отчетов
@@ -243,11 +217,8 @@ REPORT_CHARTS = {
     'sales_by_hour': 'line',
     'sales_by_weekday': 'bar',
     'sales_by_department': 'bar',
-    'sales_comparison': 'bar',
     'top_products': 'bar',
-    'bottom_products': 'bar',
-    'avg_check': 'line',
-    'check_statistics': 'bar'
+    'avg_check': 'line'
 }
 
 # Категории отчетов для группировки в меню
