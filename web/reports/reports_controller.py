@@ -49,37 +49,60 @@ class ReportsController:
             filters.get('dateTo')
         )
         
-        # Базовый SQL запрос
+        # Базовый SQL запрос с правильной группировкой по чекам и связью с таблицей departments
         base_query = """
-            SELECT 
-                DATE(s.close_time) as date,
-                d.name as department,
-                st.name as store,
-                COUNT(DISTINCT s.order_num) as orders_count,
-                SUM(s.dish_sum) as total_amount,
-                AVG(s.dish_sum) as avg_check
-            FROM sales s
-            LEFT JOIN departments d ON s.department_id = d.id
-            LEFT JOIN stores st ON s.store_id = st.id
-            WHERE DATE(s.close_time) BETWEEN :date_from AND :date_to
-                AND (s.storned IS NULL OR s.storned = false)
+            WITH cheque_totals AS (
+                SELECT 
+                    DATE(s.close_time) as date,
+                    COALESCE(d.name, 'Не указан') as department,
+                    COALESCE(s.store_name, 'Не указана') as store,
+                    s.order_num, 
+                    s.fiscal_cheque_number, 
+                    SUM(s.dish_sum) as cheque_total
+                FROM sales s
+                LEFT JOIN departments d ON s.department_id = d.id
+                WHERE DATE(s.close_time) BETWEEN :date_from AND :date_to
+                    AND (s.storned IS NULL OR s.storned = false)
         """
         
-        # Добавляем фильтры
+        # Добавляем фильтры в CTE
         params = {'date_from': date_from, 'date_to': date_to}
         
+        # Фильтр по отделам - теперь используем department_id
         if filters.get('department') and filters.get('department') != 'all':
             departments = filters.get('department') if isinstance(filters.get('department'), list) else [filters.get('department')]
-            base_query += f" AND d.id IN :departments"
-            params['departments'] = tuple(departments)
+            # Конвертируем строки в UUID, если нужно
+            try:
+                department_uuids = [d for d in departments if d and d != 'all']
+                if department_uuids:
+                    # Используем простое IN с приведением к тексту
+                    placeholders = ', '.join([f':dept_{i}' for i in range(len(department_uuids))])
+                    base_query += f" AND s.department_id::text IN ({placeholders})"
+                    # Добавляем параметры
+                    for i, dept_id in enumerate(department_uuids):
+                        params[f'dept_{i}'] = dept_id
+            except Exception as e:
+                # Если ошибка конвертации, игнорируем фильтр
+                pass
         
         if filters.get('store') and filters.get('store') != 'all':
             stores = filters.get('store') if isinstance(filters.get('store'), list) else [filters.get('store')]
-            base_query += f" AND st.id IN :stores"
+            base_query += f" AND s.store_name IN :stores"
             params['stores'] = tuple(stores)
         
+        # Завершаем CTE и основной запрос
         base_query += """
-            GROUP BY DATE(s.close_time), d.name, st.name
+                GROUP BY DATE(s.close_time), d.name, s.store_name, s.order_num, s.fiscal_cheque_number
+            )
+            SELECT 
+                date,
+                department,
+                store,
+                COUNT(*) as orders_count,
+                SUM(cheque_total) as total_amount,
+                ROUND(AVG(cheque_total), 2) as avg_check
+            FROM cheque_totals
+            GROUP BY date, department, store
             ORDER BY date DESC, total_amount DESC
         """
         
@@ -103,8 +126,8 @@ class ReportsController:
                         'department': row.department or 'Не указан',
                         'store': row.store or 'Не указана',
                         'orders_count': int(row.orders_count) if row.orders_count else 0,
-                        'total_amount': round(float(row.total_amount) / 100, 2) if row.total_amount else 0.0,  # Переводим копейки в рубли
-                        'avg_check': round(float(row.avg_check) / 100, 2) if row.avg_check else 0.0  # Переводим копейки в рубли
+                        'total_amount': round(float(row.total_amount), 2) if row.total_amount else 0.0,  # Сумма в тенге
+                        'avg_check': round(float(row.avg_check), 2) if row.avg_check else 0.0  # Средний чек в тенге
                     })
                 
                 return {
@@ -214,6 +237,19 @@ def get_report_data(report_id):
             filters[key] = request.args.getlist(f'{key}[]')
         else:
             filters[key] = value
+    
+    # Обрабатываем множественные значения для select полей
+    for key in list(filters.keys()):
+        if key in ['department', 'store'] and not isinstance(filters[key], list):
+            # Если значение не список, но нужно обработать как множественное
+            value = filters[key]
+            if ',' in value:  # Проверяем, есть ли разделители
+                filters[key] = [v.strip() for v in value.split(',')]
+            elif value != 'all':  # Если не 'all', оборачиваем в список
+                filters[key] = [value]
+    
+    # Отладочный вывод
+    print(f"Report {report_id} filters: {filters}")
     
     # Вызываем соответствующий метод получения данных
     if report_id == 'sales-by-period':

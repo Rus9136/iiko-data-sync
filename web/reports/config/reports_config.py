@@ -9,9 +9,9 @@ REPORTS_CONFIG = {
             {'key': 'date', 'name': 'Дата', 'type': 'date'},
             {'key': 'department', 'name': 'Отдел', 'type': 'string'},
             {'key': 'store', 'name': 'Точка продаж', 'type': 'string'},
-            {'key': 'total_amount', 'name': 'Сумма продаж', 'type': 'money'},
-            {'key': 'orders_count', 'name': 'Количество заказов', 'type': 'number'},
-            {'key': 'avg_check', 'name': 'Средний чек', 'type': 'money'}
+            {'key': 'total_amount', 'name': 'Сумма продаж (₸)', 'type': 'money'},
+            {'key': 'orders_count', 'name': 'Количество чеков', 'type': 'number'},
+            {'key': 'avg_check', 'name': 'Средний чек (₸)', 'type': 'money'}
         ],
         'default_view': 'table',
         'allowed_views': ['table', 'chart'],
