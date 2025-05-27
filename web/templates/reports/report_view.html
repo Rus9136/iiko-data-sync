@@ -133,15 +133,8 @@
         <!-- Контейнер для таблицы -->
         <div id="tableView" class="table-container">
             <table class="table report-table" id="reportTable">
-                <thead>
-                    <tr>
-                        {% for column in report_config.columns %}
-                        <th data-sort="{{ column.key }}" style="cursor: pointer;">
-                            {{ column.name }}
-                            <i class="fas fa-sort ms-1 text-muted"></i>
-                        </th>
-                        {% endfor %}
-                    </tr>
+                <thead id="reportTableHead">
+                    <!-- Заголовки будут динамически загружены -->
                 </thead>
                 <tbody id="reportTableBody">
                     <!-- Данные будут загружены через AJAX -->
@@ -180,6 +173,8 @@ class ReportView {
         this.currentSort = { field: null, direction: 'asc' };
         this.chart = null;
         this.loadStartTime = null;
+        this.currentColumns = reportConfig.columns || [];
+        this.currentChartType = reportConfig.chart_type || 'line';
         
         this.initializeEventListeners();
         this.setDefaultFilters();
@@ -219,13 +214,13 @@ class ReportView {
             });
         });
         
-        // Сортировка таблицы
-        document.querySelectorAll('th[data-sort]').forEach(th => {
-            th.addEventListener('click', (e) => {
-                const field = e.target.closest('th').dataset.sort;
-                this.sortTable(field);
+        // Обработчик изменения типа отчета
+        const reportTypeSelect = document.querySelector('select[name="reportType"]');
+        if (reportTypeSelect) {
+            reportTypeSelect.addEventListener('change', () => {
+                this.loadReportData();
             });
-        });
+        }
     }
     
     setDefaultFilters() {
@@ -317,6 +312,9 @@ class ReportView {
             
             if (result.success) {
                 this.lastData = result.data;
+                this.currentColumns = result.columns || this.reportConfig.columns;
+                this.currentChartType = result.chart_type || this.reportConfig.chart_type;
+                this.renderHeaders();
                 this.renderData(result.data);
                 this.updateInfo(result.total_records || result.data.length);
             } else {
@@ -338,6 +336,27 @@ class ReportView {
         }
     }
     
+    renderHeaders() {
+        const thead = document.getElementById('reportTableHead');
+        thead.innerHTML = '';
+        
+        const tr = document.createElement('tr');
+        this.currentColumns.forEach(column => {
+            const th = document.createElement('th');
+            th.dataset.sort = column.key;
+            th.style.cursor = 'pointer';
+            th.innerHTML = `${column.name} <i class="fas fa-sort ms-1 text-muted"></i>`;
+            
+            // Добавляем обработчик сортировки
+            th.addEventListener('click', () => {
+                this.sortTable(column.key);
+            });
+            
+            tr.appendChild(th);
+        });
+        thead.appendChild(tr);
+    }
+    
     renderTable(data) {
         const tbody = document.getElementById('reportTableBody');
         tbody.innerHTML = '';
@@ -350,7 +369,7 @@ class ReportView {
         data.forEach(row => {
             const tr = document.createElement('tr');
             
-            this.reportConfig.columns.forEach(column => {
+            this.currentColumns.forEach(column => {
                 const td = document.createElement('td');
                 const value = row[column.key];
                 
@@ -389,7 +408,7 @@ class ReportView {
         const chartData = this.prepareChartData(data);
         
         this.chart = new Chart(ctx, {
-            type: this.reportConfig.chart_type || 'line',
+            type: this.currentChartType || 'line',
             data: chartData,
             options: {
                 responsive: true,
@@ -405,7 +424,25 @@ class ReportView {
                 },
                 scales: {
                     y: {
-                        beginAtZero: true
+                        beginAtZero: true,
+                        ticks: {
+                            // Форматируем значения на оси Y для денежных сумм
+                            callback: function(value) {
+                                if (this.chart.data.datasets.some(ds => ds.label && ds.label.includes('₸'))) {
+                                    return new Intl.NumberFormat('kk-KZ', {
+                                        minimumFractionDigits: 0,
+                                        maximumFractionDigits: 0
+                                    }).format(value) + ' ₸';
+                                }
+                                return value;
+                            }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
                     }
                 }
             }
@@ -414,18 +451,32 @@ class ReportView {
     
     prepareChartData(data) {
         // Базовая подготовка данных для графика
-        const labels = data.map(row => row[this.reportConfig.columns[0].key]);
+        const labels = data.map(row => {
+            const value = row[this.currentColumns[0].key];
+            // Форматируем метки в зависимости от типа
+            if (this.currentColumns[0].type === 'date') {
+                return this.formatDate(value);
+            }
+            return value;
+        });
+        
         const datasets = [];
         
         // Создаем датасеты для числовых колонок
-        this.reportConfig.columns.forEach((column, index) => {
-            if (['money', 'number'].includes(column.type) && index > 0) {
+        this.currentColumns.forEach((column, index) => {
+            if (['money', 'number', 'percent'].includes(column.type) && index > 0) {
+                // Пропускаем колонки с процентами для линейных графиков
+                if (column.type === 'percent' && this.currentChartType === 'line') {
+                    return;
+                }
+                
                 datasets.push({
                     label: column.name,
                     data: data.map(row => row[column.key] || 0),
                     borderColor: this.getChartColor(datasets.length),
-                    backgroundColor: this.getChartColor(datasets.length, 0.2),
-                    tension: 0.1
+                    backgroundColor: this.getChartColor(datasets.length, this.currentChartType === 'bar' ? 0.8 : 0.2),
+                    tension: 0.1,
+                    borderWidth: 2
                 });
             }
         });
