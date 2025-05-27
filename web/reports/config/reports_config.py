@@ -42,26 +42,20 @@ REPORTS_CONFIG = {
     },
     'writeoffs-by-period': {
         'id': 'writeoffs-by-period',
-        'name': 'Списания по периодам',
+        'name': 'Анализ списаний',
         'category': 'writeoffs',
-        'filters': ['dateRange', 'store', 'account'],
-        'columns': [
-            {'key': 'date', 'name': 'Дата', 'type': 'date'},
-            {'key': 'store', 'name': 'Точка продаж', 'type': 'string'},
-            {'key': 'account', 'name': 'Счет', 'type': 'string'},
-            {'key': 'total_cost', 'name': 'Сумма списаний', 'type': 'money'},
-            {'key': 'documents_count', 'name': 'Документов', 'type': 'number'},
-            {'key': 'items_count', 'name': 'Позиций', 'type': 'number'}
-        ],
+        'filters': ['dateRange', 'store', 'account', 'writeoffReportType'],
+        'dynamic_columns': True,  # Колонки зависят от типа отчета
         'default_view': 'table',
         'allowed_views': ['table', 'chart'],
         'chart_type': 'line',
         'default_filters': {
             'dateRange': 'month',
             'store': 'all',
-            'account': 'all'
+            'account': 'all',
+            'writeoffReportType': 'writeoffs_by_period'
         },
-        'description': 'Динамика списаний по периодам и счетам'
+        'description': 'Комплексный анализ списаний с различными типами отчетов'
     },
     'departments-comparison': {
         'id': 'departments-comparison',
@@ -161,6 +155,16 @@ FILTERS_CONFIG = {
             {'value': 'top_products', 'text': 'Топ-продаваемых товаров'},
             {'value': 'avg_check', 'text': 'Средний чек по периодам и точкам'}
         ]
+    },
+    'writeoffReportType': {
+        'type': 'select',
+        'name': 'Тип отчета',
+        'multiple': False,
+        'options': [
+            {'value': 'writeoffs_by_period', 'text': 'Списания по периодам'},
+            {'value': 'writeoffs_by_reason', 'text': 'Списания по причинам'},
+            {'value': 'writeoffs_by_product', 'text': 'Списания по товарам'}
+        ]
     }
 }
 
@@ -209,6 +213,31 @@ REPORT_COLUMNS = {
         {'key': 'max_check', 'name': 'Макс. чек (₸)', 'type': 'money'},
         {'key': 'orders_count', 'name': 'Количество чеков', 'type': 'number'}
     ],
+    'writeoffs_by_period': [
+        {'key': 'date', 'name': 'Дата', 'type': 'date'},
+        {'key': 'store', 'name': 'Точка продаж', 'type': 'string'},
+        {'key': 'total_cost', 'name': 'Сумма списаний (₸)', 'type': 'money'},
+        {'key': 'total_amount', 'name': 'Количество', 'type': 'number'},
+        {'key': 'documents_count', 'name': 'Документов', 'type': 'number'},
+        {'key': 'items_count', 'name': 'Позиций', 'type': 'number'}
+    ],
+    'writeoffs_by_reason': [
+        {'key': 'account_code', 'name': 'Код счета', 'type': 'string'},
+        {'key': 'account_name', 'name': 'Причина списания', 'type': 'string'},
+        {'key': 'total_cost', 'name': 'Сумма списаний (₸)', 'type': 'money'},
+        {'key': 'total_amount', 'name': 'Количество', 'type': 'number'},
+        {'key': 'documents_count', 'name': 'Документов', 'type': 'number'},
+        {'key': 'percentage', 'name': 'Доля %', 'type': 'percent'}
+    ],
+    'writeoffs_by_product': [
+        {'key': 'rank', 'name': '№', 'type': 'number'},
+        {'key': 'product_code', 'name': 'Код товара', 'type': 'string'},
+        {'key': 'product_name', 'name': 'Товар', 'type': 'string'},
+        {'key': 'category', 'name': 'Категория', 'type': 'string'},
+        {'key': 'total_amount', 'name': 'Количество', 'type': 'number'},
+        {'key': 'total_cost', 'name': 'Сумма списаний (₸)', 'type': 'money'},
+        {'key': 'percentage', 'name': 'Доля %', 'type': 'percent'}
+    ],
 }
 
 # Типы графиков для отчетов
@@ -218,7 +247,10 @@ REPORT_CHARTS = {
     'sales_by_weekday': 'bar',
     'sales_by_department': 'bar',
     'top_products': 'bar',
-    'avg_check': 'line'
+    'avg_check': 'line',
+    'writeoffs_by_period': 'line',
+    'writeoffs_by_reason': 'bar',
+    'writeoffs_by_product': 'bar'
 }
 
 # Категории отчетов для группировки в меню

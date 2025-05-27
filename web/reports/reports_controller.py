@@ -7,8 +7,12 @@ from .config.reports_config import REPORTS_CONFIG, FILTERS_CONFIG, REPORT_CATEGO
 import pandas as pd
 from io import BytesIO
 from flask import send_file
+from .writeoffs.writeoffs_reports_controller import writeoffs_reports_bp
 
 reports_bp = Blueprint('reports', __name__, url_prefix='/reports')
+
+# Регистрируем дочерний Blueprint для отчетов по списаниям
+reports_bp.register_blueprint(writeoffs_reports_bp)
 
 class ReportsController:
     
@@ -1011,6 +1015,10 @@ def get_report_data(report_id):
         if result['success']:
             result['columns'] = REPORT_COLUMNS.get(report_type, [])
             result['chart_type'] = REPORT_CHARTS.get(report_type, 'line')
+    elif report_id == 'writeoffs-by-period':
+        # Передаем управление контроллеру списаний
+        from .writeoffs.writeoffs_reports_controller import get_writeoffs_data_internal
+        result = get_writeoffs_data_internal(filters)
     else:
         result = {'success': False, 'error': 'Report not implemented yet', 'data': []}
     
@@ -1027,6 +1035,11 @@ def export_report(report_id):
     """Экспорт отчета в Excel"""
     if report_id not in REPORTS_CONFIG:
         return jsonify({'success': False, 'error': 'Report not found'}), 404
+    
+    # Если это отчет по списаниям, передаем управление специальному контроллеру
+    if report_id == 'writeoffs-by-period':
+        from .writeoffs.writeoffs_reports_controller import export_writeoffs_report_internal
+        return export_writeoffs_report_internal(request.args)
     
     # Получаем фильтры из параметров запроса
     filters = {}
