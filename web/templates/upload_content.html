@@ -4,6 +4,100 @@
 </div>
 
 <div class="row">
+    <!-- Комплексная синхронизация -->
+    <div class="col-12 mb-4">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title">
+                    <i class="bi bi-arrow-repeat"></i> Комплексная синхронизация документов
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Синхронизация всех документов (чеки, приходные накладные, списания) за указанный период</p>
+                <form id="complexSyncForm">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="complexStartDate" class="form-label">Дата начала</label>
+                                <input type="date" class="form-control" id="complexStartDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="complexEndDate" class="form-label">Дата окончания</label>
+                                <input type="date" class="form-control" id="complexEndDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100" id="complexSyncBtn">
+                                    <i class="bi bi-arrow-repeat"></i> Начать синхронизацию
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Прогресс синхронизации -->
+                <div id="complexSyncProgress" class="mt-4" style="display: none;">
+                    <h5>Прогресс синхронизации:</h5>
+                    
+                    <!-- Общий прогресс -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Общий прогресс</span>
+                            <span id="totalProgressText">0%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div id="totalProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Детальный прогресс по типам -->
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6><i class="bi bi-receipt"></i> Чеки продаж</h6>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div id="salesProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small id="salesStatus" class="text-muted">Ожидание...</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6><i class="bi bi-file-earmark-arrow-down"></i> Приходные накладные</h6>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div id="invoicesProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small id="invoicesStatus" class="text-muted">Ожидание...</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6><i class="bi bi-file-earmark-minus"></i> Списания</h6>
+                                    <div class="progress mb-2" style="height: 20px;">
+                                        <div id="writeoffsProgressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small id="writeoffsStatus" class="text-muted">Ожидание...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Результаты -->
+                    <div id="complexSyncResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Загрузка приходных накладных -->
     <div class="col-md-6 mb-4">
         <div class="card">
@@ -142,6 +236,13 @@
 <script>
 // Установка дат по умолчанию
 document.addEventListener('DOMContentLoaded', function() {
+    // Для комплексной синхронизации - последние 7 дней
+    const complexEndDate = new Date();
+    const complexStartDate = new Date();
+    complexStartDate.setDate(complexStartDate.getDate() - 7);
+    
+    document.getElementById('complexStartDate').value = formatDate(complexStartDate);
+    document.getElementById('complexEndDate').value = formatDate(complexEndDate);
     // Для продаж - последние 7 дней
     const salesEndDate = new Date();
     const salesStartDate = new Date();
@@ -199,6 +300,228 @@ function loadSuppliers() {
 
 // Вызываем загрузку поставщиков при загрузке страницы
 loadSuppliers();
+
+// Комплексная синхронизация
+document.getElementById('complexSyncForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const startDate = document.getElementById('complexStartDate').value;
+    const endDate = document.getElementById('complexEndDate').value;
+    const progressDiv = document.getElementById('complexSyncProgress');
+    const resultDiv = document.getElementById('complexSyncResult');
+    const syncBtn = document.getElementById('complexSyncBtn');
+    
+    // Показываем прогресс и отключаем кнопку
+    progressDiv.style.display = 'block';
+    syncBtn.disabled = true;
+    syncBtn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Синхронизация...';
+    resultDiv.innerHTML = '';
+    
+    // Сброс прогресса
+    updateProgress('total', 0);
+    updateProgress('sales', 0, 'Подготовка...');
+    updateProgress('invoices', 0, 'Ожидание...');
+    updateProgress('writeoffs', 0, 'Ожидание...');
+    
+    let totalSteps = 3;
+    let completedSteps = 0;
+    let results = {
+        sales: null,
+        invoices: null,
+        writeoffs: null
+    };
+    
+    try {
+        // 1. Синхронизация чеков продаж
+        updateProgress('sales', 10, 'Синхронизация...');
+        try {
+            const salesResponse = await fetch('/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    entity: 'sales',
+                    start_date: startDate + 'T00:00:00',
+                    end_date: endDate + 'T23:59:59',
+                    clear_existing: false
+                })
+            });
+            results.sales = await salesResponse.json();
+            updateProgress('sales', 100, results.sales.status === 'success' ? 
+                `✓ Готово (${results.sales.stats?.created || 0} новых)` : 
+                `✗ Ошибка: ${results.sales.message}`);
+        } catch (error) {
+            results.sales = { status: 'error', message: error.message };
+            updateProgress('sales', 100, `✗ Ошибка: ${error.message}`);
+        }
+        completedSteps++;
+        updateProgress('total', (completedSteps / totalSteps) * 100);
+        
+        // 2. Синхронизация приходных накладных (по всем поставщикам)
+        updateProgress('invoices', 10, 'Получение списка поставщиков...');
+        try {
+            // Сначала синхронизируем справочник поставщиков
+            await fetch('/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entity: 'suppliers' })
+            });
+            
+            // Получаем список всех поставщиков
+            const suppliersResponse = await fetch('/suppliers/list');
+            const suppliersData = await suppliersResponse.json();
+            
+            if (suppliersData.suppliers && suppliersData.suppliers.length > 0) {
+                updateProgress('invoices', 20, `Найдено поставщиков: ${suppliersData.suppliers.length}`);
+                
+                let invoiceCount = 0;
+                let invoiceErrors = 0;
+                
+                // Синхронизируем накладные по каждому поставщику
+                for (let i = 0; i < suppliersData.suppliers.length; i++) {
+                    const supplier = suppliersData.suppliers[i];
+                    const progress = 20 + (i / suppliersData.suppliers.length) * 70;
+                    updateProgress('invoices', progress, `Обработка: ${supplier.name}`);
+                    
+                    try {
+                        const invoiceResponse = await fetch('/incoming_invoices/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                from_date: startDate,
+                                to_date: endDate,
+                                supplier_id: supplier.id
+                            })
+                        });
+                        const invoiceResult = await invoiceResponse.json();
+                        if (invoiceResult.status === 'success') {
+                            invoiceCount += invoiceResult.count || 0;
+                        } else {
+                            invoiceErrors++;
+                        }
+                    } catch (error) {
+                        invoiceErrors++;
+                    }
+                }
+                
+                results.invoices = {
+                    status: 'success',
+                    message: `Синхронизировано ${invoiceCount} накладных от ${suppliersData.suppliers.length} поставщиков`,
+                    errors: invoiceErrors
+                };
+                updateProgress('invoices', 100, `✓ Готово (${invoiceCount} накладных)`);
+            } else {
+                results.invoices = { status: 'error', message: 'Нет поставщиков для синхронизации' };
+                updateProgress('invoices', 100, '✗ Нет поставщиков');
+            }
+        } catch (error) {
+            results.invoices = { status: 'error', message: error.message };
+            updateProgress('invoices', 100, `✗ Ошибка: ${error.message}`);
+        }
+        completedSteps++;
+        updateProgress('total', (completedSteps / totalSteps) * 100);
+        
+        // 3. Синхронизация списаний
+        updateProgress('writeoffs', 10, 'Синхронизация...');
+        try {
+            const writeoffsResponse = await fetch('/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    entity: 'writeoffs',
+                    start_date: startDate,
+                    end_date: endDate
+                })
+            });
+            results.writeoffs = await writeoffsResponse.json();
+            updateProgress('writeoffs', 100, results.writeoffs.status === 'success' ? 
+                `✓ Готово (${results.writeoffs.stats?.documents_created || 0} документов)` : 
+                `✗ Ошибка: ${results.writeoffs.message}`);
+        } catch (error) {
+            results.writeoffs = { status: 'error', message: error.message };
+            updateProgress('writeoffs', 100, `✗ Ошибка: ${error.message}`);
+        }
+        completedSteps++;
+        updateProgress('total', (completedSteps / totalSteps) * 100);
+        
+        // Формируем итоговое сообщение
+        let successCount = 0;
+        let errorCount = 0;
+        let detailMessages = [];
+        
+        if (results.sales?.status === 'success') {
+            successCount++;
+            detailMessages.push(`<li class="text-success">Чеки продаж: ${results.sales.message}</li>`);
+        } else {
+            errorCount++;
+            detailMessages.push(`<li class="text-danger">Чеки продаж: ${results.sales?.message || 'Ошибка'}</li>`);
+        }
+        
+        if (results.invoices?.status === 'success') {
+            successCount++;
+            detailMessages.push(`<li class="text-success">Приходные накладные: ${results.invoices.message}</li>`);
+        } else {
+            errorCount++;
+            detailMessages.push(`<li class="text-danger">Приходные накладные: ${results.invoices?.message || 'Ошибка'}</li>`);
+        }
+        
+        if (results.writeoffs?.status === 'success') {
+            successCount++;
+            detailMessages.push(`<li class="text-success">Списания: ${results.writeoffs.message}</li>`);
+        } else {
+            errorCount++;
+            detailMessages.push(`<li class="text-danger">Списания: ${results.writeoffs?.message || 'Ошибка'}</li>`);
+        }
+        
+        const overallStatus = errorCount === 0 ? 'success' : (successCount > 0 ? 'warning' : 'error');
+        const overallMessage = `
+            <h5>Синхронизация завершена</h5>
+            <p>Успешно: ${successCount}, С ошибками: ${errorCount}</p>
+            <ul class="mb-0">
+                ${detailMessages.join('')}
+            </ul>
+        `;
+        
+        showMessage(resultDiv, overallMessage, overallStatus);
+        
+    } catch (error) {
+        showMessage(resultDiv, `Критическая ошибка: ${error.message}`, 'error');
+    } finally {
+        // Восстанавливаем кнопку
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Начать синхронизацию';
+    }
+});
+
+// Функция обновления прогресса
+function updateProgress(type, percent, status = '') {
+    if (type === 'total') {
+        document.getElementById('totalProgressBar').style.width = percent + '%';
+        document.getElementById('totalProgressText').textContent = Math.round(percent) + '%';
+    } else {
+        const progressBar = document.getElementById(type + 'ProgressBar');
+        const statusText = document.getElementById(type + 'Status');
+        
+        progressBar.style.width = percent + '%';
+        if (percent === 100) {
+            progressBar.classList.remove('progress-bar-animated');
+            if (status.includes('✓')) {
+                progressBar.classList.add('bg-success');
+            } else if (status.includes('✗')) {
+                progressBar.classList.add('bg-danger');
+            }
+        } else {
+            progressBar.classList.add('progress-bar-animated');
+        }
+        
+        if (status) {
+            statusText.textContent = status;
+        }
+    }
+}
 
 // Загрузка приходных накладных
 document.getElementById('incomingInvoicesForm').addEventListener('submit', function(e) {
@@ -479,5 +802,47 @@ function showMessage(element, message, type) {
 
 .alert-warning {
     border-left: 4px solid #ffc107;
+}
+
+/* Стили для комплексной синхронизации */
+.border-primary {
+    border-color: var(--primary) !important;
+    border-width: 2px;
+}
+
+.bg-primary {
+    background-color: var(--primary) !important;
+}
+
+.text-white {
+    color: white !important;
+}
+
+#complexSyncProgress .card {
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+#complexSyncProgress .progress {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+#complexSyncProgress .progress-bar {
+    transition: width 0.3s ease;
+}
+
+#complexSyncProgress h6 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#complexSyncProgress small {
+    font-size: 0.8rem;
+    display: block;
+    margin-top: 0.25rem;
 }
 </style>
