@@ -163,7 +163,8 @@ FILTERS_CONFIG = {
         'options': [
             {'value': 'writeoffs_by_period', 'text': 'Списания по периодам'},
             {'value': 'writeoffs_by_reason', 'text': 'Списания по причинам'},
-            {'value': 'writeoffs_by_product', 'text': 'Списания по товарам'}
+            {'value': 'writeoffs_by_product', 'text': 'Списания по товарам'},
+            {'value': 'writeoffs_vs_procurement', 'text': 'Процент списаний от закупок'}
         ]
     }
 }
@@ -238,6 +239,15 @@ REPORT_COLUMNS = {
         {'key': 'total_cost', 'name': 'Сумма списаний (₸)', 'type': 'money'},
         {'key': 'percentage', 'name': 'Доля %', 'type': 'percent'}
     ],
+    'writeoffs_vs_procurement': [
+        {'key': 'product_code', 'name': 'Код товара', 'type': 'string'},
+        {'key': 'product_name', 'name': 'Товар', 'type': 'string'},
+        {'key': 'procurement_amount', 'name': 'Поступило', 'type': 'number'},
+        {'key': 'sold_amount', 'name': 'Продано', 'type': 'number'},
+        {'key': 'writeoff_amount', 'name': 'Списано', 'type': 'number'},
+        {'key': 'writeoff_percentage', 'name': '% списаний', 'type': 'percent'},
+        {'key': 'status', 'name': 'Статус', 'type': 'string'}
+    ],
 }
 
 # Типы графиков для отчетов
@@ -250,7 +260,8 @@ REPORT_CHARTS = {
     'avg_check': 'line',
     'writeoffs_by_period': 'line',
     'writeoffs_by_reason': 'bar',
-    'writeoffs_by_product': 'bar'
+    'writeoffs_by_product': 'bar',
+    'writeoffs_vs_procurement': 'bar'
 }
 
 # Категории отчетов для группировки в меню

@@ -1,8 +1,59 @@
+<script>
+// Определяем функцию сразу при загрузке
+(function() {
+    // Функция навигации назад к списку приходных накладных
+    function navigateBackToInvoices() {
+        // Проверяем наличие функций навигации из base.html
+        if (typeof window.setActiveSection === 'function' && typeof window.loadSection === 'function') {
+            window.setActiveSection('incoming_invoices');
+            window.loadSection('incoming_invoices');
+        } else if (typeof window.loadContent === 'function') {
+            window.loadContent('/incoming_invoices');
+        } else if (typeof window.loadInternalPage === 'function') {
+            window.loadInternalPage('/incoming_invoices');
+        } else if (window.parent && window.parent !== window) {
+            // Проверяем родительское окно
+            if (typeof window.parent.setActiveSection === 'function' && typeof window.parent.loadSection === 'function') {
+                window.parent.setActiveSection('incoming_invoices');
+                window.parent.loadSection('incoming_invoices');
+            } else {
+                window.location.href = '/incoming_invoices';
+            }
+        } else {
+            // Если ничего не доступно, используем обычную навигацию
+            window.location.href = '/incoming_invoices';
+        }
+    }
+    
+    // Ждем загрузки DOM и привязываем обработчик
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('backToInvoicesBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    navigateBackToInvoices();
+                });
+            }
+        });
+    } else {
+        // DOM уже загружен
+        const backBtn = document.getElementById('backToInvoicesBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                navigateBackToInvoices();
+            });
+        }
+    }
+})();
+</script>
+
 <div class="invoice-detail-page">
     <!-- Навигация и заголовок с отступами -->
     <div style="padding: 2.5rem 2.5rem 0;">
         <div class="mb-4">
-            <button class="btn btn-outline-secondary" onclick="goBackToInvoices()">
+            <button class="btn btn-outline-secondary" id="backToInvoicesBtn">
                 <i class="bi bi-arrow-left"></i> Вернуться к накладным
             </button>
         </div>
@@ -224,12 +275,3 @@
 }
 </style>
 
-<script>
-function goBackToInvoices() {
-    if (typeof loadContent === 'function') {
-        loadContent('/incoming_invoices');
-    } else {
-        window.location.href = '/incoming_invoices';
-    }
-}
-</script>

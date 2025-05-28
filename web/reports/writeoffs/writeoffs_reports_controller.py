@@ -143,6 +143,8 @@ def get_writeoffs_data_internal(filters):
             data = get_writeoffs_by_reason(where_clause, params)
         elif report_type == 'writeoffs_by_product':
             data = get_writeoffs_by_product(where_clause, params)
+        elif report_type == 'writeoffs_vs_procurement':
+            data = get_writeoffs_vs_procurement(where_clause, params)
         else:
             raise ValueError(f"Unknown report type: {report_type}")
         
@@ -349,6 +351,87 @@ def get_writeoffs_by_product(where_clause, params):
     finally:
         session.close()
 
+def get_writeoffs_vs_procurement(where_clause, params):
+    """Получение данных для отчета 'Процент списаний от закупок'"""
+    query = f"""
+    WITH procurement_data AS (
+        SELECT 
+            p.code as product_code,
+            p.name as product_name,
+            SUM(ii.amount) as procurement_amount
+        FROM incoming_invoices inv
+        JOIN incoming_invoice_items ii ON inv.id = ii.invoice_id
+        JOIN products p ON ii.product_id = p.id
+        WHERE inv.status IN ('NEW', 'PROCESSED')
+            AND inv.date_incoming <= :date_to
+        GROUP BY p.code, p.name
+    ),
+    sales_data AS (
+        SELECT 
+            p.code as product_code,
+            SUM(s.dish_amount) as sold_amount
+        FROM sales s
+        JOIN products p ON s.dish_code = p.code
+        WHERE s.close_time::date <= :date_to
+            AND s.dish_amount > 0
+            AND s.storned = false
+        GROUP BY p.code
+    ),
+    writeoff_data AS (
+        SELECT 
+            p.code as product_code,
+            SUM(wi.amount) as writeoff_amount
+        FROM writeoff_documents wd
+        JOIN writeoff_items wi ON wd.id = wi.document_id
+        JOIN products p ON wi.product_id = p.id
+        WHERE {where_clause}
+        GROUP BY p.code
+    )
+    SELECT 
+        pd.product_code,
+        pd.product_name,
+        COALESCE(pd.procurement_amount, 0) as procurement_amount,
+        COALESCE(sd.sold_amount, 0) as sold_amount,
+        COALESCE(wd.writeoff_amount, 0) as writeoff_amount,
+        CASE 
+            WHEN pd.procurement_amount > 0 
+            THEN (COALESCE(wd.writeoff_amount, 0) / pd.procurement_amount * 100)
+            ELSE 0
+        END as writeoff_percentage,
+        CASE 
+            WHEN COALESCE(wd.writeoff_amount, 0) = 0 THEN 'Нет списаний'
+            WHEN COALESCE(wd.writeoff_amount, 0) / NULLIF(pd.procurement_amount, 0) < 0.05 THEN 'Низкий'
+            WHEN COALESCE(wd.writeoff_amount, 0) / NULLIF(pd.procurement_amount, 0) < 0.15 THEN 'Средний'
+            ELSE 'Высокий'
+        END as status
+    FROM procurement_data pd
+    LEFT JOIN sales_data sd ON pd.product_code = sd.product_code
+    LEFT JOIN writeoff_data wd ON pd.product_code = wd.product_code
+    WHERE pd.procurement_amount > 0
+    ORDER BY writeoff_percentage DESC, pd.procurement_amount DESC
+    LIMIT 100
+    """
+    
+    session = Session()
+    try:
+        result = session.execute(text(query), params)
+        
+        data = []
+        for row in result:
+            data.append({
+                'product_code': row.product_code,
+                'product_name': row.product_name,
+                'procurement_amount': float(row.procurement_amount) if row.procurement_amount else 0,
+                'sold_amount': float(row.sold_amount) if row.sold_amount else 0,
+                'writeoff_amount': float(row.writeoff_amount) if row.writeoff_amount else 0,
+                'writeoff_percentage': float(row.writeoff_percentage) if row.writeoff_percentage else 0,
+                'status': row.status or 'Неопределен'
+            })
+        
+        return data
+    finally:
+        session.close()
+
 def export_writeoffs_report_internal(args):
     """Внутренняя функция для экспорта отчета по списаниям в Excel"""
     try:
@@ -379,6 +462,9 @@ def export_writeoffs_report_internal(args):
         elif report_type == 'writeoffs_by_product':
             df = df[['rank', 'product_code', 'product_name', 'category', 'total_amount', 'total_cost', 'percentage']]
             df.columns = ['№', 'Код товара', 'Товар', 'Категория', 'Количество', 'Сумма списаний (₸)', 'Доля %']
+        elif report_type == 'writeoffs_vs_procurement':
+            df = df[['product_code', 'product_name', 'procurement_amount', 'sold_amount', 'writeoff_amount', 'writeoff_percentage', 'status']]
+            df.columns = ['Код товара', 'Товар', 'Поступило', 'Продано', 'Списано', '% списаний', 'Статус']
         
         # Создаем Excel файл
         output = io.BytesIO()
@@ -411,7 +497,8 @@ def export_writeoffs_report_internal(args):
         report_names = {
             'writeoffs_by_period': 'Списания_по_периодам',
             'writeoffs_by_reason': 'Списания_по_причинам',
-            'writeoffs_by_product': 'Списания_по_товарам'
+            'writeoffs_by_product': 'Списания_по_товарам',
+            'writeoffs_vs_procurement': 'Процент_списаний_от_закупок'
         }
         filename = f"{report_names.get(report_type, 'Отчет')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         
@@ -453,6 +540,9 @@ def export_writeoffs_report():
         elif report_type == 'writeoffs_by_product':
             df = df[['rank', 'product_code', 'product_name', 'category', 'total_amount', 'total_cost', 'percentage']]
             df.columns = ['№', 'Код товара', 'Товар', 'Категория', 'Количество', 'Сумма списаний (₸)', 'Доля %']
+        elif report_type == 'writeoffs_vs_procurement':
+            df = df[['product_code', 'product_name', 'procurement_amount', 'sold_amount', 'writeoff_amount', 'writeoff_percentage', 'status']]
+            df.columns = ['Код товара', 'Товар', 'Поступило', 'Продано', 'Списано', '% списаний', 'Статус']
         
         # Создаем Excel файл
         output = io.BytesIO()
@@ -485,7 +575,8 @@ def export_writeoffs_report():
         report_names = {
             'writeoffs_by_period': 'Списания_по_периодам',
             'writeoffs_by_reason': 'Списания_по_причинам',
-            'writeoffs_by_product': 'Списания_по_товарам'
+            'writeoffs_by_product': 'Списания_по_товарам',
+            'writeoffs_vs_procurement': 'Процент_списаний_от_закупок'
         }
         filename = f"{report_names.get(report_type, 'Отчет')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         

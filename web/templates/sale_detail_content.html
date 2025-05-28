@@ -1,8 +1,59 @@
+<script>
+// Определяем функцию сразу при загрузке
+(function() {
+    // Функция навигации назад к списку продаж
+    function navigateBackToSales() {
+        // Проверяем наличие функций навигации из base.html
+        if (typeof window.setActiveSection === 'function' && typeof window.loadSection === 'function') {
+            window.setActiveSection('sales');
+            window.loadSection('sales');
+        } else if (typeof window.loadContent === 'function') {
+            window.loadContent('/sales');
+        } else if (typeof window.loadInternalPage === 'function') {
+            window.loadInternalPage('/sales');
+        } else if (window.parent && window.parent !== window) {
+            // Проверяем родительское окно
+            if (typeof window.parent.setActiveSection === 'function' && typeof window.parent.loadSection === 'function') {
+                window.parent.setActiveSection('sales');
+                window.parent.loadSection('sales');
+            } else {
+                window.location.href = '/sales';
+            }
+        } else {
+            // Если ничего не доступно, используем обычную навигацию
+            window.location.href = '/sales';
+        }
+    }
+    
+    // Ждем загрузки DOM и привязываем обработчик
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            const backBtn = document.getElementById('backToSalesBtn');
+            if (backBtn) {
+                backBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    navigateBackToSales();
+                });
+            }
+        });
+    } else {
+        // DOM уже загружен
+        const backBtn = document.getElementById('backToSalesBtn');
+        if (backBtn) {
+            backBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                navigateBackToSales();
+            });
+        }
+    }
+})();
+</script>
+
 <div class="sale-detail-page">
     <!-- Навигация и заголовок с отступами -->
     <div style="padding: 2.5rem 2.5rem 0;">
         <div class="mb-4">
-            <button class="btn btn-outline-secondary" onclick="goBackToSales()">
+            <button class="btn btn-outline-secondary" id="backToSalesBtn">
                 <i class="bi bi-arrow-left"></i> Вернуться к продажам
             </button>
         </div>
@@ -308,12 +359,3 @@
 }
 </style>
 
-<script>
-function goBackToSales() {
-    if (typeof loadContent === 'function') {
-        loadContent('/sales');
-    } else {
-        window.location.href = '/sales';
-    }
-}
-</script>

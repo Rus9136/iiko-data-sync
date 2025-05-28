@@ -653,7 +653,8 @@ def sale_detail(sale_id):
         total_increase = sum(related.increase_sum or 0 for related in related_sales)
         order_items_count = len(related_sales)
         
-        return render_template('sale_detail.html', 
+        template = 'sale_detail_content.html' if is_ajax_request() else 'sale_detail.html'
+        return render_template(template, 
                              sale=sale,
                              related_sales=related_sales,
                              total_sum=total_sum,
